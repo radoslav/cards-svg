@@ -1,12 +1,19 @@
 /**
- * Dev-only generator for `src/glyphs.ts`.
+ * Dev-only generator for the glyph sets in `src/fonts/`.
  *
- * Vectorizes the Unicode suit symbols and the ace rank glyph into raw path data
- * so the generator never depends on fonts at runtime. Requires `inkscape` and
- * fontconfig on the machine that regenerates the glyphs (not on the machine
- * that only renders cards).
+ * Vectorizes the Unicode suit symbols and every rank into raw path data so the
+ * card generator never depends on fonts at runtime. Requires `inkscape` and
+ * fontconfig on the machine that regenerates the glyphs (not on a machine that
+ * only renders cards).
  *
- * Usage: bun tools/extract-glyphs.ts [--font FreeSans] [--out src/glyphs.ts]
+ * A font rarely covers both jobs: text fonts usually have the digits but not the
+ * suit symbols, so `--font` accepts a fontconfig family list and each glyph is
+ * resolved through it independently. For example "Noto Sans, Noto Sans Symbols 2"
+ * takes ranks from Noto Sans and the suits from Noto Sans Symbols 2.
+ *
+ * Usage:
+ *   bun tools/extract-glyphs.ts [--font FreeSans] [--name FreeSans]
+ *                               [--out src/fonts/free-sans.ts]
  */
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -18,14 +25,16 @@ import {
   RANKS,
   SUIT_ORDER,
   SUIT_SYMBOL,
+  type GlyphId,
   type SuitStyle,
 } from "../src/suits.ts";
 
 const GLYPH_FONT_SIZE = 1000;
 const CANVAS_SIZE = 2000;
+const DEFAULT_FONT = "FreeSans";
 
 interface GlyphEntry {
-  readonly id: string;
+  readonly id: GlyphId;
   readonly character: string;
   /** Ranks are drawn bold so the index reads clearly at card size. */
   readonly bold: boolean;
@@ -37,7 +46,7 @@ function glyphEntries(): GlyphEntry[] {
   for (const style of styles) {
     for (const suit of SUIT_ORDER) {
       entries.push({
-        id: style === "solid" ? suit : `${suit}Outlined`,
+        id: style === "solid" ? suit : (`${suit}Outlined` as GlyphId),
         character: SUIT_SYMBOL[suit][style],
         bold: false,
       });
@@ -151,14 +160,30 @@ async function vectorize(
   };
 }
 
+/** `Noto Sans` -> `NOTO_SANS`, for the exported constant. */
+function constantName(name: string): string {
+  return name
+    .trim()
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .split(/[^a-zA-Z0-9]+/)
+    .filter(Boolean)
+    .join("_")
+    .toUpperCase();
+}
+
 function renderModule(
   glyphs: ReadonlyArray<{ id: string; d: string; bold: boolean } & BoundingBox>,
   font: string,
+  name: string,
+  outPath: string,
 ): string {
+  const command = `bun tools/extract-glyphs.ts --font "${font}" --name "${name}" --out ${outPath}`;
   const lines = [
     "/*",
     " * GENERATED FILE - do not edit by hand.",
-    ` * Regenerate with: bun tools/extract-glyphs.ts --font ${font}`,
+    ` * Regenerate with: ${command}`,
+    " *",
+    ` * Font: ${font}`,
     " *",
     " * Path data is vectorized from a system font at a nominal font size of",
     ` * ${GLYPH_FONT_SIZE} units. x/y/width/height describe the glyph bounding box in`,
@@ -166,40 +191,25 @@ function renderModule(
     " * bold records whether the source glyph was vectorized from a bold weight.",
     " */",
     "",
-    "export interface Glyph {",
-    "    /** Path data in the source font coordinate space. */",
-    "    readonly d: string;",
-    "    /** Bounding box of the path data. */",
-    "    readonly x: number;",
-    "    readonly y: number;",
-    "    readonly width: number;",
-    "    readonly height: number;",
-    "    /** True when the glyph was vectorized from a bold font weight. */",
-    "    readonly bold: boolean;",
-    "}",
+    'import type { GlyphSet } from "./types.ts";',
     "",
-    "export const GLYPHS = {",
+    `/** Vectorized glyphs for the "${name}" font set. */`,
+    `export const ${constantName(name)}: GlyphSet = {`,
   ];
 
   for (const glyph of glyphs) {
-    lines.push(`    ${glyph.id}: {`);
-    lines.push(`        d: ${JSON.stringify(glyph.d)},`);
-    lines.push(`        x: ${format(glyph.x)},`);
-    lines.push(`        y: ${format(glyph.y)},`);
-    lines.push(`        width: ${format(glyph.width)},`);
-    lines.push(`        height: ${format(glyph.height)},`);
-    lines.push(`        bold: ${glyph.bold ? "true" : "false"},`);
-    lines.push("    },");
+    lines.push(`  ${glyph.id}: {`);
+    lines.push(`    d: ${JSON.stringify(glyph.d)},`);
+    lines.push(`    x: ${format(glyph.x)},`);
+    lines.push(`    y: ${format(glyph.y)},`);
+    lines.push(`    width: ${format(glyph.width)},`);
+    lines.push(`    height: ${format(glyph.height)},`);
+    lines.push(`    bold: ${glyph.bold ? "true" : "false"},`);
+    lines.push("  },");
   }
 
-  lines.push("} as const satisfies Record<string, Glyph>;");
+  lines.push("};");
   lines.push("");
-  lines.push("export type GlyphId = keyof typeof GLYPHS;");
-  lines.push("");
-  lines.push("/** Looks up a glyph by an untrusted identifier. */");
-  lines.push("export function glyphById(id: string): Glyph | undefined {");
-  lines.push("    return (GLYPHS as Record<string, Glyph>)[id];");
-  lines.push("}", "");
   return lines.join("\n");
 }
 
@@ -213,8 +223,9 @@ function flagValue(args: readonly string[], name: string): string | undefined {
 }
 
 const args = process.argv.slice(2);
-const font = flagValue(args, "--font") ?? "FreeSans";
-const outPath = flagValue(args, "--out") ?? "src/glyphs.ts";
+const font = flagValue(args, "--font") ?? DEFAULT_FONT;
+const name = flagValue(args, "--name") ?? font.split(",")[0]!.trim();
+const outPath = flagValue(args, "--out") ?? "src/fonts/free-sans.ts";
 
 const workDir = await mkdtemp(join(tmpdir(), "cards-svg-glyphs-"));
 const glyphs: Array<{ id: string; d: string; bold: boolean } & BoundingBox> =
@@ -230,7 +241,7 @@ for (const entry of glyphEntries()) {
   );
 }
 
-await Bun.write(outPath, renderModule(glyphs, font));
+await Bun.write(outPath, renderModule(glyphs, font, name, outPath));
 // Keep the generated file formatter-clean so regenerating never dirties `bun fmt --check`.
 Bun.spawnSync({ cmd: [process.execPath, "fmt", outPath], stderr: "inherit" });
 console.log(`wrote ${outPath} (${glyphs.length} glyphs, font: ${font})`);

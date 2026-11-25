@@ -15,6 +15,7 @@ export function renderDeck(deck: DeckSpec): readonly DeckCardFile[] {
       rank: card.rank,
       size: deck.size,
       layout: deck.layout,
+      font: deck.font,
     }),
   }));
 }

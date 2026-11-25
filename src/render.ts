@@ -1,9 +1,17 @@
-import { glyphById, type Glyph, type GlyphId } from "./glyphs.ts";
+import {
+  DEFAULT_FONT,
+  fontSet,
+  type FontName,
+  type Glyph,
+  type GlyphId,
+  type GlyphSet,
+} from "./glyphs.ts";
 import { cardGeometry, type CardGeometry, type CardSize } from "./layout.ts";
 import { isPipRank, PIP_LAYOUTS, type PipRank } from "./pips.ts";
 import {
   COLOR_BACKGROUND,
   defaultColor,
+  DEFAULT_LAYOUT,
   glyphIdFor,
   RANK_GLYPH_ID,
   type CardLayout,
@@ -22,13 +30,18 @@ export interface CardSpec {
    * Middle column layout. `standard` draws one large pip plus four corner pips,
    * `jumbo` draws a single oversized pip, and `traditional` draws the pip
    * pattern of the rank (falling back to `standard` for the ace and the face
-   * cards). Defaults to `standard`.
+   * cards). Defaults to `DEFAULT_LAYOUT`.
    */
   readonly layout?: CardLayout;
   /** Physical card size. Defaults to the bridge size (57 x 89 mm). */
   readonly size?: CardSize;
   /** Foreground color. Defaults to red for hearts/diamonds, black otherwise. */
   readonly color?: string;
+  /**
+   * Vectorized font set for the rank and suit glyphs. Defaults to
+   * `DEFAULT_FONT`; every registered font covers every rank and suit.
+   */
+  readonly font?: FontName;
   /** Pretty-print the document with newlines and indentation. Defaults to true. */
   readonly pretty?: boolean;
 }
@@ -53,10 +66,14 @@ interface GlyphRef {
   readonly id: string;
 }
 
-function requireGlyph(id: GlyphId): Glyph {
-  const glyph = glyphById(id);
+/**
+ * A glyph from a resolved set. `GlyphSet` is exhaustive, so a miss means the
+ * generated set is stale rather than that the id is unknown.
+ */
+function requireGlyph(glyphs: GlyphSet, id: GlyphId): Glyph {
+  const glyph = glyphs[id];
   if (!glyph) {
-    throw new Error(`missing glyph "${id}" - regenerate src/glyphs.ts`);
+    throw new Error(`missing glyph "${id}" - regenerate src/fonts/`);
   }
   return glyph;
 }
@@ -253,17 +270,18 @@ function indexUses(geo: CardGeometry, color: string): Node[] {
 /** Renders a single bridge card as a standalone SVG document. */
 export function renderCard(spec: CardSpec): string {
   const style = spec.style ?? "solid";
-  const layout = spec.layout ?? "standard";
+  const layout = spec.layout ?? DEFAULT_LAYOUT;
   const color = spec.color ?? defaultColor(spec.suit);
   const pretty = spec.pretty ?? true;
   const geo = cardGeometry(spec.size ?? DEFAULT_CARD_SIZE);
+  const glyphs = fontSet(spec.font ?? DEFAULT_FONT);
 
   const pip: GlyphRef = {
-    glyph: requireGlyph(glyphIdFor(spec.suit, style)),
+    glyph: requireGlyph(glyphs, glyphIdFor(spec.suit, style)),
     id: PIP_ID,
   };
   const rank: GlyphRef = {
-    glyph: requireGlyph(RANK_GLYPH_ID[spec.rank]),
+    glyph: requireGlyph(glyphs, RANK_GLYPH_ID[spec.rank]),
     id: RANK_ID,
   };
 

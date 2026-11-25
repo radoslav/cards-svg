@@ -8,11 +8,11 @@ kolumn (20% / 60% / 20%):
    Ranga jest krojem **bold**, a symbol koloru ma taką samą wysokość jak ranga.
 2. **Kolumna 2** — ramka, której ścieżka to dokładnie obrys środkowej kolumny,
    czyli 20% od każdej krawędzi karty (lewej, prawej, górnej i dolnej). Linia
-   o grubości 1,5 mm leży symetrycznie na tym obrysie. Domyślnie w środku jeden
-   duży symbol pośrodku i cztery mniejsze w rogach (dolne obrócone o 180°).
-   W trybie `jumbo` zamiast pięciu symbolów jest jeden, duży, wyśrodkowany i
-   dopasowany do wnętrza ramki z zachowaniem proporcji, a w trybie `traditional`
-   liczba symboli odpowiada wartości karty.
+   o grubości 1,5 mm leży symetrycznie na tym obrysie. Domyślnie liczba symboli
+   w środku odpowiada wartości karty (tryb `traditional`), przy czym as i figury
+   dostają jeden duży symbol pośrodku i cztery mniejsze w rogach. W trybie
+   `jumbo` zamiast nich jest jeden, duży, wyśrodkowany i dopasowany do wnętrza
+   ramki z zachowaniem proporcji.
 3. **Kolumna 3** — ten sam indeks co w kolumnie 1, ale na dole i obrócony.
 
 Output zawiera wyłącznie `<path>`, `<rect>` i `<use>` — żadnych `<text>` ani
@@ -33,11 +33,15 @@ bun index.ts diamonds A --out diamond-A.svg
 bun index.ts spades A --style outlined --no-pretty
 bun index.ts hearts A --color "#B00020"
 
-# Jeden duży symbol w środkowej kolumnie
+# Tradycyjne rozmieszczenie pipów to układ domyślny
+bun index.ts hearts 9
+
+# Pięć symboli albo jeden duży w środkowej kolumnie
+bun index.ts hearts 9 --layout standard
 bun index.ts clubs A --layout jumbo
 
-# Tradycyjne rozmieszczenie pipów dla danej wartości
-bun index.ts hearts 9 --layout traditional
+# Inny krój glifów (musi być wcześniej zawektoryzowany, patrz niżej)
+bun index.ts spades Q --font "Noto Sans"
 
 # Cała talia do katalogu out/bridge/ lub out/poker/
 bun index.ts deck bridge
@@ -49,24 +53,29 @@ bun index.ts spades K --deck poker
 
 Nazwy kolorów działają w liczbie pojedynczej i mnogiej (`diamond` / `diamonds`).
 Domyślnie generowana jest as ♦, więc samo `bun index.ts` też daje A♦.
+Wielkość liter nie ma znaczenia — `DIAMONDS a --style OUTLINED` to to samo co
+`diamonds A --style outlined`, a `--font "noto sans"` przyjmie nazwę z dowolnymi
+literami i odstępami. Błędna wartość wypisuje dozwolone opcje i najbliższe
+pasowanie.
 
 ### Flagi
 
-| Opcja                      | Domyślnie       | Opis                                                                         |
-| -------------------------- | --------------- | ---------------------------------------------------------------------------- |
-| `<suit>`                   | `diamonds`      | `spades` \| `hearts` \| `diamonds` \| `clubs` (kolejność brydżowa)           |
-| `<rank>`                   | `A`             | `A` `K` `Q` `J` `10` `9` `8` `7` `6` `5` `4` `3` `2`                         |
-| `--style`                  | `solid`         | `solid` (♦) albo `outlined` (♢)                                              |
-| `--layout`                 | `standard`      | `standard` (5 symboli), `jumbo` (jeden duży) albo `traditional` (wzór rangi) |
-| `--deck`                   | —               | Rozmiar i układ z presetu talii: `bridge` albo `poker`                       |
-| `--color`                  | czerwony/czarny | Nadpisanie koloru karty, np. `#C8102E`                                       |
-| `--out`                    | stdout          | Ścieżka zapisu SVG                                                           |
-| `--pretty` / `--no-pretty` | `--pretty`      | Formatowanie wieloliniowe albo jedna linia                                   |
+| Opcja                      | Domyślnie       | Opis                                                                     |
+| -------------------------- | --------------- | ------------------------------------------------------------------------ |
+| `<suit>`                   | `diamonds`      | `spades` \| `hearts` \| `diamonds` \| `clubs` (kolejność brydżowa)       |
+| `<rank>`                   | `A`             | `A` `K` `Q` `J` `10` `9` `8` `7` `6` `5` `4` `3` `2`                     |
+| `--style`                  | `solid`         | `solid` (♦) albo `outlined` (♢)                                          |
+| `--layout`                 | `traditional`   | `traditional` (wzór rangi), `standard` (5 symboli) albo `jumbo` (1 duży) |
+| `--deck`                   | —               | Rozmiar, układ i krój z presetu talii: `bridge` albo `poker`             |
+| `--font`                   | `FreeSans`      | Krój glifów: `FreeSans` albo `Noto Sans`                                 |
+| `--color`                  | czerwony/czarny | Nadpisanie koloru karty, np. `#C8102E`                                   |
+| `--out`                    | stdout          | Ścieżka zapisu SVG                                                       |
+| `--pretty` / `--no-pretty` | `--pretty`      | Formatowanie wieloliniowe albo jedna linia                               |
 
 ### Komenda `deck`
 
 ```bash
-bun index.ts deck <bridge|poker> [--out-dir out]
+bun index.ts deck <bridge|poker> [--out-dir out] [--font <font>]
 ```
 
 Zapisuje wszystkie 52 karty jako osobne pliki SVG w `<out-dir>/<deck>/`.
@@ -77,6 +86,7 @@ Zapisuje wszystkie 52 karty jako osobne pliki SVG w `<out-dir>/<deck>/`.
 | `poker`  | 63 × 88 mm    | `jumbo` (1 duży symbol)    | `out/poker/`  |
 
 Nazwy plików to `<suit>-<rank>.svg`, na przykład `spades-A.svg` czy `hearts-10.svg`.
+`--font` nadpisuje krój glifów dla całej talii, np. `bun index.ts deck poker --font "Noto Sans"`.
 
 ## Biblioteka
 
@@ -87,12 +97,13 @@ const svg = renderCard({ suit: "diamonds", rank: "A" });
 ```
 
 `renderCard()` przyjmuje `CardSpec` (`suit`, `rank`, `style`, `layout`, `size`,
-`color`, `pretty`) i zwraca gotowy dokument SVG.
+`color`, `font`, `pretty`) i zwraca gotowy dokument SVG. Domyślny układ to
+`DEFAULT_LAYOUT` z `src/suits.ts`, czyli `traditional`. Jednostki `viewBox` to
+0,1 mm, więc karta 57 × 89 mm ma viewBox `0 0 570 890`.
 
 Tabelę tradycyjnych wzorów eksportuje `src/pips.ts`: `PIP_LAYOUTS[rangi]` to
 pozycje znormalizowane do pola pipów (`fx`/`fy` od 0 do 1), więc ten sam wzór
-działa dla każdego rozmiaru karty. Jednostki `viewBox` to 0,1 mm,
-więc karta 57 × 89 mm ma viewBox `0 0 570 890`.
+działa dla każdego rozmiaru karty.
 
 Całą talię renderuje `renderDeck(DECKS.poker)` (bez zapisu na dysk) albo
 `writeDeck(DECKS.poker, "out")`. Geometrię dowolnego rozmiaru zwraca
@@ -112,15 +123,29 @@ krój, tylko w innym formacie.
 | ♦ Karo                     | ♦     | U+2666        | ♢          | U+2662             |
 | ♣ Trefl                    | ♣     | U+2663        | ♧          | U+2667             |
 
-## Wektory glifów
+## Krój glifów
 
-`src/glyphs.ts` jest **generowany** i zawiera już zawektoryzowane kształty symboli
-oraz rangi. Regeneracja (wymaga `inkscape` i fontconfig, tylko na maszynie deweloperskiej):
+Glify są **zawektoryzowane z góry**, po jednym zestawie na font, więc `--font`
+wybiera gotowy zestaw, a nie odwołuje się do systemu fontów w czasie działania.
+Dostępne kroje zwraca `bun index.ts generate --help` (flaga `--font`).
+
+Nowy krój dodaje się generatorem (wymaga `inkscape` i fontconfig, tylko na
+maszynie deweloperskiej):
 
 ```bash
-bun run glyphs                 # domyślnie font FreeSans
-bun run glyphs -- --font "DejaVu Sans"
+bun run glyphs -- --font "Liberation Sans" --name "Liberation Sans" \
+  --out src/fonts/liberation-sans.ts
 ```
+
+Następnie trzeba dodać wygenerowany zestaw do `FONT_SETS` w `src/glyphs.ts`.
+`GlyphSet` jest wyczerpujący (kluczem jest każdy `GlyphId`), więc brakujący
+symbol koloru czy ranga nie skompilują się.
+
+Żaden font tekstowy nie ma wszystkich potrzebnych znaków: cyfry i litery są w
+nim, ale symbole kolorów (U+2660–U+2667) zwykle nie. `--font` przyjmuje więc
+**listę rodzin fontconfig** i każdy znak rozwiązuje osobno — stąd
+`Noto Sans, Noto Sans Symbols 2`, gdzie rangi biorą się z Noto Sans, a pipy z
+Noto Sans Symbols 2.
 
 Sam generator kart nie potrzebuje Inkscape ani sieci.
 
@@ -147,13 +172,13 @@ Dzięki temu karta A♣ ma ~1,8 KB zamiast ~4,5 KB, a pozycjonowanie to sam
 
 ```bash
 bun run typecheck   # bun check
-bun test            # 127 testów: geometria, glify, pipy, SVG, render, talie, CLI
+bun test            # 162 testy: geometria, glify, pipy, SVG, render, talie, CLI
 ```
 
 ## Tradycyjne rozmieszczenie pipów
 
-`--layout traditional` rysuje w środkowej kolumnie tyle symboli, ile wynosi
-wartość karty, zgodnie z konwencją zwykłej talii:
+`--layout traditional` to układ domyślny. Rysuje w środkowej kolumnie tyle
+symboli, ile wynosi wartość karty, zgodnie z konwencją zwykłej talii:
 
 | Ranga | Wzór                                          |
 | ----- | --------------------------------------------- |

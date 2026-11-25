@@ -1,9 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import { DEFAULT_CARD_SIZE, renderCard } from "./render.ts";
-import { GLYPHS, type Glyph } from "./glyphs.ts";
 import {
+  DEFAULT_FONT,
+  FONT_NAMES,
+  FONT_SETS,
+  GLYPHS,
+  type Glyph,
+} from "./glyphs.ts";
+import {
+  CARD_LAYOUTS,
   COLOR_BLACK,
   COLOR_RED,
+  DEFAULT_LAYOUT,
   SUIT_ORDER,
   type Rank,
   type Suit,
@@ -368,11 +376,12 @@ describe("jumbo layout", () => {
     }
   });
 
-  test("is opt-in - standard stays the default", () => {
-    expect(renderCard({ suit: "diamonds", rank: "A" })).toBe(standard);
-    expect(
+  test("is opt-in over the default layout", () => {
+    // The ace renders the same way by default and as standard, so the jumbo
+    // layout has to be asked for explicitly.
+    expect(renderCard({ suit: "diamonds", rank: "A" })).toBe(
       renderCard({ suit: "diamonds", rank: "A", layout: "standard" }),
-    ).toBe(standard);
+    );
     expect(
       renderCard({ suit: "diamonds", rank: "A", layout: "jumbo" }),
     ).not.toBe(standard);
@@ -424,7 +433,10 @@ describe("traditional layout", () => {
         rank,
         layout: "traditional",
       });
-      expect(traditional).toBe(renderCard({ suit: "clubs", rank }));
+      expect(traditional).toBe(
+        renderCard({ suit: "clubs", rank, layout: "standard" }),
+      );
+      expect(middleColumnPips(traditional)).toHaveLength(5);
     }
   });
 
@@ -503,12 +515,13 @@ describe("traditional layout", () => {
     expect(countElements(svg, "path")).toBe(2);
   });
 
-  test("is opt-in - standard stays the default", () => {
+  test("is the default layout", () => {
+    expect(DEFAULT_LAYOUT).toBe("traditional");
     expect(renderCard({ suit: "hearts", rank: "9" })).toBe(
-      renderCard({ suit: "hearts", rank: "9", layout: "standard" }),
+      renderCard({ suit: "hearts", rank: "9", layout: "traditional" }),
     );
     expect(renderCard({ suit: "hearts", rank: "9" })).not.toBe(
-      renderCard({ suit: "hearts", rank: "9", layout: "traditional" }),
+      renderCard({ suit: "hearts", rank: "9", layout: "standard" }),
     );
   });
 
@@ -522,6 +535,74 @@ describe("traditional layout", () => {
     assertWellFormed(svg);
     expect(svg).toContain('width="63mm"');
     expect(middleColumnPips(svg)).toHaveLength(10);
+  });
+});
+
+describe("font selection", () => {
+  test("defaults to the default font", () => {
+    expect(renderCard({ suit: "diamonds", rank: "A" })).toBe(
+      renderCard({ suit: "diamonds", rank: "A", font: DEFAULT_FONT }),
+    );
+  });
+
+  test("swaps the glyph paths for another font", () => {
+    const free = renderCard({ suit: "diamonds", rank: "A" });
+    const noto = renderCard({ suit: "diamonds", rank: "A", font: "Noto Sans" });
+    expect(noto).not.toBe(free);
+    expect(noto).toContain(`d="${FONT_SETS["Noto Sans"].diamonds.d}"`);
+    expect(noto).not.toContain(`d="${FONT_SETS[DEFAULT_FONT].diamonds.d}"`);
+    expect(free).toContain(`d="${FONT_SETS[DEFAULT_FONT].diamonds.d}"`);
+  });
+
+  test("keeps the geometry identical across fonts", () => {
+    for (const font of FONT_NAMES) {
+      const svg = renderCard({
+        suit: "clubs",
+        rank: "9",
+        layout: "traditional",
+        font,
+      });
+      assertWellFormed(svg);
+      expect(svg).toContain(`viewBox="0 0 ${geo.width} ${geo.height}"`);
+      expect(middleColumnPips(svg)).toHaveLength(9);
+      expect(placements(svg).filter((p) => p.href === "index")).toHaveLength(2);
+    }
+  });
+
+  test("scales each font's glyphs to the same visual size", () => {
+    // Every font is scaled to the layout's fixed heights, so the rendered pip
+    // height matches across fonts even though the source paths differ.
+    const renderedHeights = FONT_NAMES.map((font) => {
+      const svg = renderCard({ suit: "hearts", rank: "A", font });
+      const [pip] = middleColumnPips(svg);
+      return scaleOf(pip!.transform) * FONT_SETS[font].hearts.height;
+    });
+    for (const height of renderedHeights) {
+      expect(height).toBeCloseTo(geo.centerPipHeight, 1);
+    }
+  });
+
+  test("works with every layout", () => {
+    for (const layout of CARD_LAYOUTS) {
+      const svg = renderCard({
+        suit: "spades",
+        rank: "7",
+        layout,
+        font: "Noto Sans",
+      });
+      assertWellFormed(svg);
+      expect(svg).toContain(`d="${FONT_SETS["Noto Sans"].spades.d}"`);
+    }
+  });
+
+  test("works with the outlined style", () => {
+    const svg = renderCard({
+      suit: "hearts",
+      rank: "Q",
+      style: "outlined",
+      font: "Noto Sans",
+    });
+    expect(svg).toContain(`d="${FONT_SETS["Noto Sans"].heartsOutlined.d}"`);
   });
 });
 

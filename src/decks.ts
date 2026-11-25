@@ -1,5 +1,7 @@
+import type { FontName } from "./glyphs.ts";
 import type { CardSize } from "./layout.ts";
 import {
+  DEFAULT_LAYOUT,
   RANKS,
   SUIT_ORDER,
   type CardLayout,
@@ -18,6 +20,8 @@ export interface DeckSpec {
   readonly size: CardSize;
   /** Middle column layout used for every card in the deck. */
   readonly layout: CardLayout;
+  /** Vectorized font set used for every card in the deck. */
+  readonly font: FontName;
   /** Directory the deck is written to, relative to the output root. */
   readonly directory: string;
 }
@@ -26,13 +30,15 @@ export const DECKS: Record<DeckName, DeckSpec> = {
   bridge: {
     name: "bridge",
     size: { widthMm: 57, heightMm: 89 },
-    layout: "traditional",
+    layout: DEFAULT_LAYOUT,
+    font: "FreeSans",
     directory: "bridge",
   },
   poker: {
     name: "poker",
     size: { widthMm: 63, heightMm: 88 },
     layout: "jumbo",
+    font: "FreeSans",
     directory: "poker",
   },
 };

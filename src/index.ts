@@ -13,7 +13,19 @@ export {
   type Suit,
   type SuitStyle,
 } from "./suits.ts";
-export { GLYPHS, glyphById, type Glyph, type GlyphId } from "./glyphs.ts";
+export {
+  DEFAULT_FONT,
+  FONT_NAMES,
+  FONT_SETS,
+  GLYPHS,
+  fontSet,
+  glyphById,
+  isFontName,
+  type FontName,
+  type Glyph,
+  type GlyphId,
+  type GlyphSet,
+} from "./glyphs.ts";
 export { cardGeometry, type CardGeometry, type CardSize } from "./layout.ts";
 export {
   isPipRank,

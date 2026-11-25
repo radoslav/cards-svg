@@ -106,8 +106,72 @@ describe("generate command", () => {
       "--layout",
       "traditional",
     ]);
-    const standard = await runCli(["hearts", "A"]);
+    const standard = await runCli(["hearts", "A", "--layout", "standard"]);
     expect(traditional.stdout()).toBe(standard.stdout());
+  });
+
+  test("traditional is the default layout", async () => {
+    const implicit = await runCli(["hearts", "9"]);
+    const explicit = await runCli(["hearts", "9", "--layout", "traditional"]);
+    expect(implicit.stdout()).toBe(explicit.stdout());
+    // Nine pips in the middle column, not the five of the standard layout.
+    const body = implicit.stdout().slice(implicit.stdout().indexOf("</defs>"));
+    const group = body.slice(body.indexOf("<g "), body.indexOf("</g>"));
+    expect((group.match(/<use/g) ?? []).length).toBe(9);
+  });
+
+  test("honours --font", async () => {
+    const { FONT_SETS } = await import("../glyphs.ts");
+    const noto = await runCli(["diamonds", "A", "--font", "Noto Sans"]);
+    expect(noto.stdout()).toContain("<svg");
+    expect(noto.stdout()).toContain(`d="${FONT_SETS["Noto Sans"].diamonds.d}"`);
+  });
+
+  test("defaults to the default font", async () => {
+    const { DEFAULT_FONT, FONT_SETS } = await import("../glyphs.ts");
+    const result = await runCli(["diamonds", "A"]);
+    expect(result.stdout()).toContain(
+      `d="${FONT_SETS[DEFAULT_FONT].diamonds.d}"`,
+    );
+  });
+
+  test("rejects an unregistered font", async () => {
+    const result = await runCli(["diamonds", "A", "--font", "Comic Sans"]);
+    expect(result.stdout()).toBe("");
+    expect(result.exitCode()).toBe(-4);
+  });
+
+  test("accepts choices in any case", async () => {
+    const lower = await runCli(["diamonds", "a", "--style", "outlined"]);
+    const upper = await runCli(["DIAMONDS", "A", "--style", "OUTLINED"]);
+    expect(upper.stdout()).toBe(lower.stdout());
+    expect(upper.exitCode()).toBe(0);
+  });
+
+  test("accepts a rank in lower case", async () => {
+    const upper = await runCli(["hearts", "K"]);
+    const lower = await runCli(["hearts", "k"]);
+    expect(lower.stdout()).toBe(upper.stdout());
+  });
+
+  test("folds whitespace and case in a font name", async () => {
+    const exact = await runCli(["hearts", "A", "--font", "Noto Sans"]);
+    const folded = await runCli(["hearts", "A", "--font", "  noto   SANS "]);
+    expect(folded.stdout()).toBe(exact.stdout());
+  });
+
+  test("suggests a correction for a near-miss value", async () => {
+    const result = await runCli(["hearts", "A", "--font", "noto sanss"]);
+    expect(result.exitCode()).toBe(-4);
+    expect(result.stderr()).toContain("did you mean");
+    expect(result.stderr()).toContain("Noto Sans");
+  });
+
+  test("rejects an empty --out instead of writing to stdout", async () => {
+    const result = await runCli(["diamonds", "A", "--out", ""]);
+    expect(result.stdout()).not.toContain("<svg");
+    expect(result.stderr()).toContain("file path");
+    expect(result.exitCode()).toBe(-4);
   });
 
   test("rejects an unknown layout", async () => {
@@ -191,6 +255,19 @@ describe("generate --deck", () => {
     const result = await runCli(["spades", "A", "--deck", "euchre"]);
     expect(result.exitCode()).toBe(-4);
   });
+
+  test("--font wins over the preset's font", async () => {
+    const { FONT_SETS } = await import("../glyphs.ts");
+    const result = await runCli([
+      "spades",
+      "A",
+      "--deck",
+      "bridge",
+      "--font",
+      "Noto Sans",
+    ]);
+    expect(result.stdout()).toContain(`d="${FONT_SETS["Noto Sans"].spades.d}"`);
+  });
 });
 
 describe("deck command", () => {
@@ -224,6 +301,37 @@ describe("deck command", () => {
     }
   });
 
+  test("writes a deck with an overridden font", async () => {
+    const { FONT_SETS } = await import("../glyphs.ts");
+    const dir = await mkdtemp(join(tmpdir(), "cards-svg-font-"));
+    try {
+      const result = await runCli([
+        "deck",
+        "poker",
+        "--out-dir",
+        dir,
+        "--font",
+        "Noto Sans",
+      ]);
+      expect(result.exitCode()).toBe(0);
+      const card = await Bun.file(join(dir, "poker", "spades-A.svg")).text();
+      expect(card).toContain(`d="${FONT_SETS["Noto Sans"].spades.d}"`);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("accepts the deck name in any case", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "cards-svg-case-"));
+    try {
+      const result = await runCli(["deck", "POKER", "--out-dir", dir]);
+      expect(result.exitCode()).toBe(0);
+      expect(result.stdout()).toContain(`${dir}/poker/`);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   test("requires a deck name", async () => {
     const result = await runCli(["deck"]);
     expect(result.exitCode()).not.toBe(0);
@@ -247,5 +355,15 @@ describe("help", () => {
     expect(result.stdout()).toContain("--style");
     expect(result.stdout()).toContain("--out");
     expect(result.stdout()).toContain("--no-pretty");
+  });
+
+  test("lists the allowed values for each choice flag", async () => {
+    const generate = await runCli(["generate", "--help"]);
+    expect(generate.stdout()).toContain("solid|outlined");
+    expect(generate.stdout()).toContain("standard|jumbo|traditional");
+    expect(generate.stdout()).toContain("bridge|poker");
+    expect(generate.stdout()).toContain("FreeSans|Noto Sans");
+    const deck = await runCli(["deck", "--help"]);
+    expect(deck.stdout()).toContain("FreeSans|Noto Sans");
   });
 });

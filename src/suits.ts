@@ -1,5 +1,3 @@
-import type { GlyphId } from "./glyphs.ts";
-
 /**
  * Suit metadata for bridge cards, in bridge ranking order (spades first).
  */
@@ -26,7 +24,17 @@ export const RANKS = [
 
 export type Rank = (typeof RANKS)[number];
 
-export type SuitStyle = "solid" | "outlined";
+/** Glyph styles: filled symbols, or hollow outlined ones. */
+export const SUIT_STYLES = ["solid", "outlined"] as const;
+
+export type SuitStyle = (typeof SUIT_STYLES)[number];
+
+/**
+ * Identifiers of the vectorized glyphs a card needs, derived from the suits and
+ * ranks. Owning the union here (rather than deriving it from one generated file)
+ * lets every font set be checked against the same complete list.
+ */
+export type GlyphId = Suit | `${Suit}Outlined` | `rank${Rank}`;
 
 /**
  * Middle column layouts: five pips, a single oversized one, or the traditional
@@ -35,6 +43,13 @@ export type SuitStyle = "solid" | "outlined";
 export const CARD_LAYOUTS = ["standard", "jumbo", "traditional"] as const;
 
 export type CardLayout = (typeof CARD_LAYOUTS)[number];
+
+/**
+ * Layout used when a card does not ask for one. `traditional` matches a printed
+ * deck: the middle column shows the pip pattern of the rank, and the ace and
+ * the face cards fall back to the five-pip layout.
+ */
+export const DEFAULT_LAYOUT: CardLayout = "traditional";
 
 /** Unicode symbols per suit, keyed by rendering style. */
 export const SUIT_SYMBOL: Record<Suit, Record<SuitStyle, string>> = {

@@ -3,7 +3,9 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { cardFileName, DECKS, DECK_NAMES, deckCards } from "./decks.ts";
+import { FONT_SETS } from "./glyphs.ts";
 import { renderDeck, writeDeck } from "./deck.ts";
+import { DEFAULT_FONT, isFontName } from "./glyphs.ts";
 import { cardGeometry } from "./layout.ts";
 import { RANKS, SUIT_ORDER } from "./suits.ts";
 
@@ -18,13 +20,21 @@ describe("deck presets", () => {
   test("bridge is 57 x 89 mm with the traditional layout", () => {
     expect(DECKS.bridge.size).toEqual({ widthMm: 57, heightMm: 89 });
     expect(DECKS.bridge.layout).toBe("traditional");
+    expect(DECKS.bridge.font).toBe(DEFAULT_FONT);
     expect(DECKS.bridge.directory).toBe("bridge");
   });
 
   test("poker is 63 x 88 mm with the jumbo layout", () => {
     expect(DECKS.poker.size).toEqual({ widthMm: 63, heightMm: 88 });
     expect(DECKS.poker.layout).toBe("jumbo");
+    expect(DECKS.poker.font).toBe(DEFAULT_FONT);
     expect(DECKS.poker.directory).toBe("poker");
+  });
+
+  test("every preset names a registered font", () => {
+    for (const name of DECK_NAMES) {
+      expect(isFontName(DECKS[name].font)).toBe(true);
+    }
   });
 
   test("every preset has a distinct output directory", () => {
@@ -97,6 +107,12 @@ describe("renderDeck", () => {
     for (const rank of ["2", "3", "4", "5", "6", "7", "8", "9", "10"]) {
       expect(pipReferences(deck.get(`spades-${rank}.svg`)!)).toBe(Number(rank));
     }
+  });
+
+  test("renders with the deck font", () => {
+    const deck = { ...DECKS.poker, font: "Noto Sans" as const };
+    const [first] = renderDeck(deck);
+    expect(first!.svg).toContain(`d="${FONT_SETS["Noto Sans"].spades.d}"`);
   });
 
   test("every card fits its deck geometry", () => {

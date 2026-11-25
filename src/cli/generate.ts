@@ -1,15 +1,19 @@
-import {
-  buildChoiceParser,
-  buildCommand,
-  type InputParser,
-} from "@stricli/core";
+import { buildCommand } from "@stricli/core";
 import type { CardContext } from "./context.ts";
-import { hexColorParser } from "./parsers.ts";
+import {
+  choiceFlag,
+  hexColorParser,
+  pathParser,
+  rankParser,
+  suitCompletions,
+  suitParser,
+} from "./parsers.ts";
 import { DECK_NAMES, DECKS, type DeckName } from "../decks.ts";
+import { FONT_NAMES, type FontName } from "../glyphs.ts";
 import {
   CARD_LAYOUTS,
-  RANKS,
-  SUIT_ORDER,
+  DEFAULT_LAYOUT,
+  SUIT_STYLES,
   type CardLayout,
   type Rank,
   type Suit,
@@ -20,30 +24,13 @@ interface GenerateFlags {
   readonly style: SuitStyle;
   readonly layout?: CardLayout;
   readonly deck?: DeckName;
+  readonly font?: FontName;
   readonly color?: string;
   readonly out?: string;
   readonly pretty: boolean;
 }
 
 type GenerateArgs = readonly [Suit, Rank];
-
-/** Accepts both the plural and singular suit names. */
-const SUIT_ALIASES: Readonly<Record<string, Suit>> = {
-  spade: "spades",
-  heart: "hearts",
-  diamond: "diamonds",
-  club: "clubs",
-};
-
-const suitParser: InputParser<Suit> = (input: string): Suit => {
-  const key = input.trim().toLowerCase();
-  const suit = SUIT_ORDER.find((value) => value === key) ?? SUIT_ALIASES[key];
-  if (!suit) {
-    throw new Error(`expected one of ${SUIT_ORDER.join(", ")}, got "${input}"`);
-  }
-  return suit;
-};
-const rankParser = buildChoiceParser(RANKS);
 
 export const generateCommand = buildCommand<
   GenerateFlags,
@@ -54,11 +41,12 @@ export const generateCommand = buildCommand<
     brief: "Generate a single card as SVG",
     fullDescription:
       "Renders one card built from three columns (20% / 60% / 20%). " +
-      "Column 1 holds the index at the top, column 2 holds a framed pip layout " +
-      "with one large center pip and four corner pips (the bottom pair rotated) " +
-      "by default, and column 3 repeats the index rotated at the bottom. " +
-      "With --layout traditional the middle column shows the pip pattern of the " +
-      "rank (2-10); aces and face cards keep the five-pip layout. " +
+      "Column 1 holds the index at the top, column 2 holds a framed pip layout, " +
+      "and column 3 repeats the index rotated at the bottom. " +
+      `With --layout ${DEFAULT_LAYOUT} the middle column shows the pip pattern ` +
+      "of the rank (2-10); aces and face cards fall back to the five-pip " +
+      "standard layout, as does --layout standard. " +
+      "With --font the rank and suit glyphs come from another vectorized font. " +
       "The output contains only vector paths, so it renders identically without fonts.",
     customUsage: ["[suit] [rank] [options]", "diamonds A > diamond-A.svg"],
   },
@@ -69,8 +57,7 @@ export const generateCommand = buildCommand<
         {
           brief: "Suit, in bridge order (default diamonds)",
           parse: suitParser,
-          proposeCompletions: (partial: string) =>
-            SUIT_ORDER.filter((suit) => suit.startsWith(partial)),
+          proposeCompletions: suitCompletions,
           default: "diamonds",
           placeholder: "suit",
         },
@@ -84,22 +71,27 @@ export const generateCommand = buildCommand<
     },
     flags: {
       style: {
-        kind: "enum",
-        brief: "Glyph style",
-        values: ["solid", "outlined"] as const,
+        ...choiceFlag(SUIT_STYLES, "style", "Glyph style"),
         default: "solid",
       },
       layout: {
-        kind: "enum",
-        brief:
-          "Middle column: five pips, one oversized symbol, or the rank's pip pattern",
-        values: CARD_LAYOUTS,
+        ...choiceFlag(
+          CARD_LAYOUTS,
+          "layout",
+          `Middle column layout, default ${DEFAULT_LAYOUT}`,
+        ),
         optional: true,
       },
       deck: {
-        kind: "enum",
-        brief: "Use a deck preset's card size and layout",
-        values: DECK_NAMES,
+        ...choiceFlag(
+          DECK_NAMES,
+          "deck",
+          "Use a deck preset's card size, layout and font",
+        ),
+        optional: true,
+      },
+      font: {
+        ...choiceFlag(FONT_NAMES, "font", "Vectorized font set for the glyphs"),
         optional: true,
       },
       color: {
@@ -111,7 +103,7 @@ export const generateCommand = buildCommand<
       },
       out: {
         kind: "parsed",
-        parse: (input: string) => input,
+        parse: pathParser,
         brief: "Write the SVG to this path instead of stdout",
         placeholder: "path",
         optional: true,
@@ -125,7 +117,7 @@ export const generateCommand = buildCommand<
   },
   func: async function (flags, suit, rank) {
     const { renderCard } = await import("../render.ts");
-    // A deck preset supplies size and layout; explicit flags still win.
+    // A deck preset supplies size, layout and font; explicit flags still win.
     const preset = flags.deck ? DECKS[flags.deck] : undefined;
     const svg = renderCard({
       suit,
@@ -133,6 +125,7 @@ export const generateCommand = buildCommand<
       style: flags.style,
       layout: flags.layout ?? preset?.layout,
       size: preset?.size,
+      font: flags.font ?? preset?.font,
       color: flags.color,
       pretty: flags.pretty,
     });
