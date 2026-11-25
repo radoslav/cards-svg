@@ -99,15 +99,25 @@ describe("generate command", () => {
     expect((group.match(/<use/g) ?? []).length).toBe(9);
   });
 
-  test("traditional falls back to five pips for the ace", async () => {
-    const traditional = await runCli([
-      "hearts",
-      "A",
-      "--layout",
-      "traditional",
-    ]);
-    const standard = await runCli(["hearts", "A", "--layout", "standard"]);
-    expect(traditional.stdout()).toBe(standard.stdout());
+  test("traditional draws a letter pair for the honours", async () => {
+    const result = await runCli(["hearts", "K", "--layout", "traditional"]);
+    expect(result.stdout()).toContain("<svg");
+    // Two rank letters plus four corner pips, and the rule between the letters.
+    const body = result.stdout().slice(result.stdout().indexOf("</defs>"));
+    const group = body.slice(body.indexOf("<g "), body.indexOf("</g>"));
+    expect((group.match(/<use/g) ?? []).length).toBe(6);
+    expect((group.match(/<rect/g) ?? []).length).toBe(2);
+  });
+
+  test("jumbo draws one large letter for the honours", async () => {
+    const result = await runCli(["spades", "Q", "--layout", "jumbo"]);
+    const body = result.stdout().slice(result.stdout().indexOf("</defs>"));
+    const group = body.slice(body.indexOf("<g "), body.indexOf("</g>"));
+    expect((group.match(/<use/g) ?? []).length).toBe(1);
+    // The single mark is the rank letter, not the suit symbol. The suit glyph
+    // is still declared in defs because the index uses it, so check the group.
+    expect(group).toContain('href="#rank"');
+    expect(group).not.toContain('href="#pip"');
   });
 
   test("traditional is the default layout", async () => {

@@ -5,6 +5,7 @@ import {
   FONT_NAMES,
   FONT_SETS,
   GLYPHS,
+  capHeight,
   type Glyph,
 } from "./glyphs.ts";
 import {
@@ -12,11 +13,13 @@ import {
   COLOR_BLACK,
   COLOR_RED,
   DEFAULT_LAYOUT,
+  RANK_GLYPH_ID,
   SUIT_ORDER,
   type Rank,
   type Suit,
 } from "./suits.ts";
 import { DECKS } from "./decks.ts";
+import { HONOUR_RANKS } from "./pips.ts";
 import { cardGeometry, type CardGeometry } from "./layout.ts";
 
 /** A `<use>` reference: which shared glyph it points at, and its transform. */
@@ -147,6 +150,30 @@ function pipCenter(
   });
 }
 
+/**
+ * The vertical span a letter actually occupies in card coordinates: `cap` is the
+ * visible capital (baseline to its top), `ink` the whole bounding box, which for
+ * `J` and `Q` reaches below the baseline. Rotation is folded in, so the span of
+ * an upside-down letter comes out the right way round.
+ */
+function letterSpan(
+  svg: string,
+  placement: Placement,
+): { cap: [number, number]; ink: [number, number] } {
+  const glyph = glyphDefs(svg).get(placement.href);
+  if (!glyph) {
+    throw new Error(`glyph "${placement.href}" is not declared in defs`);
+  }
+  const at = (y: number): number =>
+    applyTransform(placement.transform, { x: glyph.x, y }).y;
+  const pair = (a: number, b: number): [number, number] =>
+    a < b ? [a, b] : [b, a];
+  return {
+    cap: pair(at(glyph.y), at(glyph.baseline)),
+    ink: pair(at(glyph.y), at(glyph.y + glyph.height)),
+  };
+}
+
 // Single-card default size, which is what the specs below render with.
 const geo: CardGeometry = cardGeometry(DEFAULT_CARD_SIZE);
 
@@ -176,7 +203,7 @@ describe("document shell", () => {
 });
 
 describe("card structure", () => {
-  const svg = renderCard({ suit: "diamonds", rank: "A" });
+  const svg = renderCard({ suit: "diamonds", rank: "A", layout: "standard" });
 
   test("has a white rounded background", () => {
     expect(svg).toContain('fill="#FFFFFF"');
@@ -246,7 +273,11 @@ describe("index placement", () => {
 
 describe("glyph placement math", () => {
   test("the folded transform lands the glyph center on its layout center", () => {
-    const svg = renderCard({ suit: "diamonds", rank: "A" });
+    const svg = renderCard({
+      suit: "diamonds",
+      rank: "A",
+      layout: "standard",
+    });
     const pip = glyphDefs(svg).get("pip");
     if (!pip) {
       throw new Error("pip glyph not declared in defs");
@@ -269,7 +300,11 @@ describe("glyph placement math", () => {
   });
 
   test("rotated pips turn about their own center", () => {
-    const svg = renderCard({ suit: "diamonds", rank: "A" });
+    const svg = renderCard({
+      suit: "diamonds",
+      rank: "A",
+      layout: "standard",
+    });
     const pip = glyphDefs(svg).get("pip")!;
     const sourceCenter = {
       x: pip.x + pip.width / 2,
@@ -333,7 +368,7 @@ describe("styles", () => {
 
   test("every suit renders", () => {
     for (const suit of SUIT_ORDER) {
-      const svg = renderCard({ suit, rank: "A" });
+      const svg = renderCard({ suit, rank: "A", layout: "standard" });
       assertWellFormed(svg);
       expect(middleColumnPips(svg)).toHaveLength(5);
     }
@@ -362,7 +397,8 @@ describe("jumbo layout", () => {
 
   test("fits every suit inside the frame", () => {
     for (const suit of SUIT_ORDER) {
-      const svg = renderCard({ suit, rank: "A", layout: "jumbo" });
+      // A numeric rank keeps the suit symbol as the oversized mark.
+      const svg = renderCard({ suit, rank: "9", layout: "jumbo" });
       assertWellFormed(svg);
       const [pip] = middleColumnPips(svg);
       const scale = scaleOf(pip!.transform);
@@ -376,15 +412,55 @@ describe("jumbo layout", () => {
     }
   });
 
+  test("sets all honour letters at one cap height", () => {
+    // A narrow letter such as J must not grow taller than a wide one such as A,
+    // and a letter with a descender must not shrink to make up for it.
+    const caps = HONOUR_RANKS.map((rank) => {
+      const svg = renderCard({ suit: "spades", rank, layout: "jumbo" });
+      const [mark] = middleColumnPips(svg);
+      return scaleOf(mark!.transform) * capHeight(GLYPHS[RANK_GLYPH_ID[rank]]);
+    });
+    for (const cap of caps) {
+      expect(cap).toBeCloseTo(caps[0]!, 3);
+    }
+    // Still an oversized mark, not shrunk down to the index size.
+    expect(caps[0]!).toBeGreaterThan(geo.indexRankHeight);
+  });
+
+  test("honour letters fit the frame at the shared height", () => {
+    for (const rank of HONOUR_RANKS) {
+      const svg = renderCard({ suit: "clubs", rank, layout: "jumbo" });
+      const [mark] = middleColumnPips(svg);
+      const scale = scaleOf(mark!.transform);
+      const glyph = GLYPHS[RANK_GLYPH_ID[rank]];
+      expect(glyph.height * scale).toBeLessThanOrEqual(
+        geo.frameHeight - geo.frameStrokeWidth,
+      );
+      expect(glyph.width * scale).toBeLessThanOrEqual(
+        geo.frameWidth - geo.frameStrokeWidth,
+      );
+    }
+  });
+
+  test("centers each honour letter on its own ink", () => {
+    // A descender is part of the letter a reader sees, so the ink has to be
+    // centered, not the cap box: otherwise `J` hangs toward the bottom of the
+    // frame and reads as a larger letter than `A`.
+    for (const rank of HONOUR_RANKS) {
+      const svg = renderCard({ suit: "spades", rank, layout: "jumbo" });
+      const [mark] = middleColumnPips(svg);
+      const span = letterSpan(svg, mark!);
+      const above = span.ink[0] - (geo.frameTop - geo.frameStrokeWidth / 2);
+      const below = geo.frameBottom + geo.frameStrokeWidth / 2 - span.ink[1];
+      expect(above).toBeCloseTo(below, 1);
+    }
+  });
+
   test("is opt-in over the default layout", () => {
-    // The ace renders the same way by default and as standard, so the jumbo
-    // layout has to be asked for explicitly.
-    expect(renderCard({ suit: "diamonds", rank: "A" })).toBe(
-      renderCard({ suit: "diamonds", rank: "A", layout: "standard" }),
-    );
+    expect(renderCard({ suit: "diamonds", rank: "A" })).not.toBe(jumbo);
     expect(
-      renderCard({ suit: "diamonds", rank: "A", layout: "jumbo" }),
-    ).not.toBe(standard);
+      renderCard({ suit: "diamonds", rank: "A", layout: "standard" }),
+    ).not.toBe(jumbo);
   });
 
   test("combines with the outlined style", () => {
@@ -426,17 +502,42 @@ describe("traditional layout", () => {
     }
   });
 
-  test("falls back to the standard layout for ace and face cards", () => {
+  test("draws a stacked letter pair for the honours", () => {
     for (const rank of ["A", "K", "Q", "J"] as const) {
-      const traditional = renderCard({
-        suit: "clubs",
-        rank,
-        layout: "traditional",
-      });
-      expect(traditional).toBe(
-        renderCard({ suit: "clubs", rank, layout: "standard" }),
-      );
-      expect(middleColumnPips(traditional)).toHaveLength(5);
+      const svg = renderCard({ suit: "clubs", rank, layout: "traditional" });
+      assertWellFormed(svg);
+      // Two letters plus the four corner pips; the rule is a rect, not a use.
+      expect(middleColumnPips(svg)).toHaveLength(6);
+      expect(svg).toContain(`d="${GLYPHS[RANK_GLYPH_ID[rank]].d}"`);
+    }
+  });
+
+  test("sets the honour letters at one cap height", () => {
+    // A letter with a descender must not read shorter than A or K, and both
+    // letters of a pair must be the same size even though one is upside down.
+    for (const rank of HONOUR_RANKS) {
+      const svg = renderCard({ suit: "clubs", rank, layout: "traditional" });
+      const glyph = GLYPHS[RANK_GLYPH_ID[rank]];
+      const letters = middleColumnPips(svg).filter((p) => p.href === "rank");
+      expect(letters).toHaveLength(2);
+      const spans = letters.map((letter) => letterSpan(svg, letter));
+      for (const letter of letters) {
+        expect(scaleOf(letter.transform) * capHeight(glyph)).toBeCloseTo(
+          geo.honourLetterCap,
+          3,
+        );
+      }
+      // Each letter is set on the rule: its own ink stops one gap away from the
+      // side it faces, so a descender (J, Q) clears the rule while A and K do
+      // not float. The upside-down letter mirrors the upright one about it.
+      const [top, bottom] = spans;
+      const ruleTop = geo.honourRuleY - geo.honourRuleThickness / 2;
+      const ruleBottom = geo.honourRuleY + geo.honourRuleThickness / 2;
+      expect(top!.cap[0]).toBeCloseTo(2 * geo.honourRuleY - bottom!.cap[1], 2);
+      expect(ruleTop - top!.ink[1]).toBeCloseTo(geo.honourLetterGap, 1);
+      expect(bottom!.ink[0] - ruleBottom).toBeCloseTo(geo.honourLetterGap, 1);
+      expect(top!.ink[1]).toBeLessThan(ruleTop);
+      expect(bottom!.ink[0]).toBeGreaterThan(ruleBottom);
     }
   });
 
@@ -573,7 +674,12 @@ describe("font selection", () => {
     // Every font is scaled to the layout's fixed heights, so the rendered pip
     // height matches across fonts even though the source paths differ.
     const renderedHeights = FONT_NAMES.map((font) => {
-      const svg = renderCard({ suit: "hearts", rank: "A", font });
+      const svg = renderCard({
+        suit: "hearts",
+        rank: "A",
+        layout: "standard",
+        font,
+      });
       const [pip] = middleColumnPips(svg);
       return scaleOf(pip!.transform) * FONT_SETS[font].hearts.height;
     });
@@ -625,6 +731,68 @@ describe("index block", () => {
       .map((p) => translateOf(p.transform).x);
     expect(xs[0]).toBeLessThan(geo.width / 2);
     expect(xs[1]).toBeGreaterThan(geo.width / 2);
+  });
+});
+
+describe("one suit height", () => {
+  /**
+   * Rendered height of every suit reference on a card: the symbol of the index
+   * block, the corner pips and the pips of the pattern all come out as `#pip`.
+   */
+  function suitHeights(svg: string, glyph: Glyph): number[] {
+    return placements(svg)
+      .filter((p) => p.href === "pip")
+      .map((p) => glyph.height * scaleOf(p.transform));
+  }
+
+  test("one suit is one size everywhere on the card", () => {
+    for (const font of FONT_NAMES) {
+      for (const suit of SUIT_ORDER) {
+        const glyph = FONT_SETS[font][suit];
+        // The nine pips of the pattern plus the symbol of the index block.
+        const svg = renderCard({
+          suit,
+          rank: "9",
+          layout: "traditional",
+          font,
+        });
+        const heights = suitHeights(svg, glyph);
+        expect(heights).toHaveLength(10);
+        for (const height of heights) {
+          expect(height).toBeCloseTo(geo.indexSuitHeight, 1);
+        }
+      }
+    }
+  });
+
+  test("the four colors differ in width but not in height", () => {
+    for (const font of FONT_NAMES) {
+      const glyphs = FONT_SETS[font];
+      const heights = SUIT_ORDER.map((suit) => glyphs[suit].height);
+      const widths = SUIT_ORDER.map((suit) => glyphs[suit].width);
+      // Source boxes are not identical, so the renderer has to equalize them.
+      expect(new Set(heights).size).toBeGreaterThan(1);
+      expect(new Set(widths).size).toBeGreaterThan(1);
+      // One height per card, whatever the color: the drawn size is the layout
+      // height, not the source box.
+      const drawn = SUIT_ORDER.map((suit) => {
+        const svg = renderCard({ suit, rank: "2", font });
+        return suitHeights(svg, glyphs[suit])[0]!;
+      });
+      for (const height of drawn) {
+        expect(height).toBeCloseTo(drawn[0]!, 1);
+      }
+    }
+  });
+
+  test("is the same on a bridge and a poker card", () => {
+    for (const size of [DEFAULT_CARD_SIZE, DECKS.poker.size]) {
+      const svg = renderCard({ suit: "spades", rank: "9", size });
+      const heights = suitHeights(svg, GLYPHS.spades);
+      for (const height of heights) {
+        expect(height).toBeCloseTo(7 * 10, 1);
+      }
+    }
   });
 });
 

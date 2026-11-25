@@ -44,6 +44,17 @@ export function fontSet(font: FontName = DEFAULT_FONT): GlyphSet {
 /** Glyph set of the default font, for callers that do not care about fonts. */
 export const GLYPHS: GlyphSet = FONT_SETS[DEFAULT_FONT];
 
+/**
+ * Visible height of a letter: baseline up to the top of the capital.
+ *
+ * The bounding box is not a stand-in for this. `J` and `Q` ink below the
+ * baseline, so their box is up to 30% taller than the letter a reader actually
+ * sees, and sizing letters by their box makes them look mismatched.
+ */
+export function capHeight(glyph: Glyph): number {
+  return glyph.baseline - glyph.y;
+}
+
 /** Looks up a glyph by an untrusted identifier. */
 export function glyphById(
   id: string,

@@ -15,6 +15,13 @@ export interface Glyph {
   readonly y: number;
   readonly width: number;
   readonly height: number;
+  /**
+   * Y of the font baseline in the same coordinate space. Letters such as `J` and
+   * `Q` ink below it, so their bounding box is taller than the visible letter
+   * height; the distance from the baseline to `y` is what makes two letters look
+   * like the same size.
+   */
+  readonly baseline: number;
   /** True when the glyph was vectorized from a bold font weight. */
   readonly bold: boolean;
 }

@@ -96,3 +96,19 @@ export function isPipRank(rank: string): rank is PipRank {
 export function pipCount(rank: PipRank): number {
   return PIP_LAYOUTS[rank].length;
 }
+
+/**
+ * The bridge honours. These have no pip count, so the middle column shows the
+ * rank letter instead of a suit symbol: a stacked pair in the `traditional`
+ * layout, one large letter in `jumbo`.
+ */
+export const HONOUR_RANKS = ["A", "K", "Q", "J"] as const;
+
+export type HonourRank = (typeof HONOUR_RANKS)[number];
+
+const HONOUR_RANK_SET: ReadonlySet<string> = new Set<string>(HONOUR_RANKS);
+
+/** True when a rank is drawn with rank letters rather than suit pips. */
+export function isHonourRank(rank: string): rank is HonourRank {
+  return HONOUR_RANK_SET.has(rank);
+}

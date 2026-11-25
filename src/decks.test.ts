@@ -102,8 +102,10 @@ describe("renderDeck", () => {
     const [first] = renderDeck(DECKS.bridge);
     expect(first!.svg).toContain('width="57mm"');
     expect(first!.svg).toContain('height="89mm"');
-    // The ace has no pip pattern, so it keeps the standard five pips.
-    expect(pipReferences(deck.get("spades-A.svg")!)).toBe(5);
+    // The honours have no pip count: two rank letters plus four corner pips.
+    for (const rank of ["A", "K", "Q", "J"]) {
+      expect(pipReferences(deck.get(`spades-${rank}.svg`)!)).toBe(6);
+    }
     for (const rank of ["2", "3", "4", "5", "6", "7", "8", "9", "10"]) {
       expect(pipReferences(deck.get(`spades-${rank}.svg`)!)).toBe(Number(rank));
     }

@@ -33,6 +33,9 @@ const GLYPH_FONT_SIZE = 1000;
 const CANVAS_SIZE = 2000;
 const DEFAULT_FONT = "FreeSans";
 
+/** Y of the text baseline in the template, which is where letters sit on. */
+const BASELINE = CANVAS_SIZE / 2;
+
 interface GlyphEntry {
   readonly id: GlyphId;
   readonly character: string;
@@ -67,7 +70,7 @@ function escapeXml(value: string): string {
 }
 
 function templateSvg(character: string, font: string, bold: boolean): string {
-  const baseline = CANVAS_SIZE / 2;
+  const baseline = BASELINE;
   const weight = bold ? ' font-weight="bold"' : "";
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${CANVAS_SIZE}" height="${CANVAS_SIZE}" viewBox="0 0 ${CANVAS_SIZE} ${CANVAS_SIZE}">`,
@@ -88,7 +91,7 @@ async function vectorize(
   entry: GlyphEntry,
   font: string,
   workDir: string,
-): Promise<{ d: string; bold: boolean } & BoundingBox> {
+): Promise<{ d: string; bold: boolean; baseline: number } & BoundingBox> {
   const source = `${workDir}/glyph.svg`;
   const output = `${workDir}/glyph-out.svg`;
   await Bun.write(source, templateSvg(entry.character, font, entry.bold));
@@ -153,6 +156,7 @@ async function vectorize(
   return {
     d: pathData.replace(/\s+/g, " ").trim(),
     bold: entry.bold,
+    baseline: BASELINE,
     x,
     y,
     width,
@@ -172,7 +176,9 @@ function constantName(name: string): string {
 }
 
 function renderModule(
-  glyphs: ReadonlyArray<{ id: string; d: string; bold: boolean } & BoundingBox>,
+  glyphs: ReadonlyArray<
+    { id: string; d: string; bold: boolean; baseline: number } & BoundingBox
+  >,
   font: string,
   name: string,
   outPath: string,
@@ -187,7 +193,8 @@ function renderModule(
     " *",
     " * Path data is vectorized from a system font at a nominal font size of",
     ` * ${GLYPH_FONT_SIZE} units. x/y/width/height describe the glyph bounding box in`,
-    " * the same coordinate space, so callers can scale and center without parsing.",
+    ` * the same coordinate space, so callers can scale and center without parsing.`,
+    ` * baseline is the font baseline (y = ${BASELINE}) that the letters sit on.`,
     " * bold records whether the source glyph was vectorized from a bold weight.",
     " */",
     "",
@@ -204,6 +211,7 @@ function renderModule(
     lines.push(`    y: ${format(glyph.y)},`);
     lines.push(`    width: ${format(glyph.width)},`);
     lines.push(`    height: ${format(glyph.height)},`);
+    lines.push(`    baseline: ${format(glyph.baseline)},`);
     lines.push(`    bold: ${glyph.bold ? "true" : "false"},`);
     lines.push("  },");
   }
@@ -228,8 +236,9 @@ const name = flagValue(args, "--name") ?? font.split(",")[0]!.trim();
 const outPath = flagValue(args, "--out") ?? "src/fonts/free-sans.ts";
 
 const workDir = await mkdtemp(join(tmpdir(), "cards-svg-glyphs-"));
-const glyphs: Array<{ id: string; d: string; bold: boolean } & BoundingBox> =
-  [];
+const glyphs: Array<
+  { id: string; d: string; bold: boolean; baseline: number } & BoundingBox
+> = [];
 for (const entry of glyphEntries()) {
   const glyph = await vectorize(entry, font, workDir);
   glyphs.push({ id: entry.id, ...glyph });

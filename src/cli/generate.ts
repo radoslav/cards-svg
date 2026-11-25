@@ -44,8 +44,8 @@ export const generateCommand = buildCommand<
       "Column 1 holds the index at the top, column 2 holds a framed pip layout, " +
       "and column 3 repeats the index rotated at the bottom. " +
       `With --layout ${DEFAULT_LAYOUT} the middle column shows the pip pattern ` +
-      "of the rank (2-10); aces and face cards fall back to the five-pip " +
-      "standard layout, as does --layout standard. " +
+      "of the rank (2-10), while aces and face cards show the rank letter twice, " +
+      "split by a rule. " +
       "With --font the rank and suit glyphs come from another vectorized font. " +
       "The output contains only vector paths, so it renders identically without fonts.",
     customUsage: ["[suit] [rank] [options]", "diamonds A > diamond-A.svg"],

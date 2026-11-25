@@ -1,13 +1,20 @@
 import {
   DEFAULT_FONT,
   fontSet,
+  capHeight,
   type FontName,
   type Glyph,
   type GlyphId,
   type GlyphSet,
 } from "./glyphs.ts";
 import { cardGeometry, type CardGeometry, type CardSize } from "./layout.ts";
-import { isPipRank, PIP_LAYOUTS, type PipRank } from "./pips.ts";
+import {
+  HONOUR_RANKS,
+  isHonourRank,
+  isPipRank,
+  PIP_LAYOUTS,
+  type PipRank,
+} from "./pips.ts";
 import {
   COLOR_BACKGROUND,
   defaultColor,
@@ -79,29 +86,42 @@ function requireGlyph(glyphs: GlyphSet, id: GlyphId): Glyph {
 }
 
 /**
- * Transform that scales a glyph to `height` units and centers its bounding box
- * on (cx, cy), optionally rotated 180 degrees around that same point.
+ * Transform that places a glyph scaled by `scale` so that the source-space point
+ * `origin` lands on (cx, cy), optionally rotated 180 degrees around that point.
  *
  * The two source-space translations are folded into one so each coordinate is
  * rounded once instead of twice.
  */
-function glyphTransform(
-  glyph: Glyph,
-  height: number,
+function placeGlyph(
+  scale: number,
+  origin: readonly [number, number],
   cx: number,
   cy: number,
   rotated: boolean,
 ): string {
-  // Round the scale first: the folded translate below is multiplied by it, so
-  // deriving it from an unrounded scale would amplify the output rounding.
-  const scale = round(height / glyph.height, SCALE_PRECISION);
-  const originX = scale * (glyph.x + glyph.width / 2);
-  const originY = scale * (glyph.y + glyph.height / 2);
+  const originX = scale * origin[0];
+  const originY = scale * origin[1];
   const [tx, ty] = rotated
     ? [cx + originX, cy + originY]
     : [cx - originX, cy - originY];
   const rotate = rotated ? " rotate(180)" : "";
   return `translate(${format(tx)} ${format(ty)})${rotate} scale(${format(scale, SCALE_PRECISION)})`;
+}
+
+/** The center of a glyph's bounding box, in source units. */
+function boxCenter(glyph: Glyph): readonly [number, number] {
+  return [glyph.x + glyph.width / 2, glyph.y + glyph.height / 2];
+}
+
+/**
+ * The scale that makes a source-space height read as `height` units.
+ *
+ * Rounded before it is used: the folded translate is multiplied by it, so
+ * deriving that translate from an unrounded scale would amplify the rounding of
+ * the output coordinates.
+ */
+function scaleTo(height: number, sourceHeight: number): number {
+  return round(height / sourceHeight, SCALE_PRECISION);
 }
 
 /** Reference to a glyph already declared in `<defs>`. */
@@ -116,9 +136,51 @@ function glyphUse(
     tag: "use",
     attributes: {
       href: `#${ref.id}`,
-      transform: glyphTransform(ref.glyph, height, cx, cy, rotated),
+      transform: placeGlyph(
+        scaleTo(height, ref.glyph.height),
+        boxCenter(ref.glyph),
+        cx,
+        cy,
+        rotated,
+      ),
     },
   };
+}
+
+/**
+ * A rank letter scaled to `cap` units of visible height and centered on its ink.
+ *
+ * The two are deliberately different boxes. The scale comes from the cap height,
+ * which is what makes `A`, `K`, `Q` and `J` read as one type size. The center
+ * comes from the bounding box, because the ink below the baseline of `J` and `Q`
+ * is part of the letter a reader sees: centering the cap box instead lets that
+ * descender hang toward the frame, so the letter looks oversized next to `A`.
+ */
+function letterUse(
+  ref: GlyphRef,
+  cap: number,
+  cx: number,
+  cy: number,
+  rotated = false,
+): Node {
+  return {
+    tag: "use",
+    attributes: {
+      href: `#${ref.id}`,
+      transform: placeGlyph(
+        scaleTo(cap, capHeight(ref.glyph)),
+        boxCenter(ref.glyph),
+        cx,
+        cy,
+        rotated,
+      ),
+    },
+  };
+}
+
+/** The largest scale at which a glyph fits a box, keeping its aspect ratio. */
+function fitScale(glyph: Glyph, maxWidth: number, maxHeight: number): number {
+  return Math.min(maxWidth / glyph.width, maxHeight / glyph.height);
 }
 
 /** Height that fits a glyph inside a box while keeping its aspect ratio. */
@@ -127,7 +189,7 @@ function fitGlyphHeight(
   maxWidth: number,
   maxHeight: number,
 ): number {
-  return Math.min(maxHeight, maxWidth * (glyph.height / glyph.width));
+  return fitScale(glyph, maxWidth, maxHeight) * glyph.height;
 }
 
 /** Glyph paths shared by every placement, declared once. */
@@ -166,36 +228,88 @@ function frameNode(geo: CardGeometry, color: string): Node {
   };
 }
 
+/** The four corner pips, the lower pair turned upside down. */
+function cornerPips(pip: GlyphRef, geo: CardGeometry): Node[] {
+  return geo.cornerPipCenters.map((placement) =>
+    glyphUse(
+      pip,
+      geo.cornerPipHeight,
+      placement.x,
+      placement.y,
+      placement.rotated,
+    ),
+  );
+}
+
+/**
+ * One cap height for every honour letter in the `jumbo` layout.
+ *
+ * Fitting each letter on its own lets a narrow letter such as `J` grow to the
+ * full frame height while a wide one such as `A` is stopped by the frame width,
+ * so the honours come out at wildly different sizes. The letters are compared by
+ * cap height, not bounding box: `J` and `Q` ink below the baseline, so boxes of
+ * one height make them read smaller than `A` or `K`. The smallest of the
+ * per-letter fits is the largest cap height every one of them fits at, so
+ * sharing it puts the honours on a single type size, the way a printed deck
+ * sets them.
+ */
+function jumboHonourCap(glyphs: GlyphSet, geo: CardGeometry): number {
+  return Math.min(
+    ...HONOUR_RANKS.map((rank) => {
+      const glyph = glyphs[RANK_GLYPH_ID[rank]];
+      return (
+        fitScale(glyph, geo.jumboMaxWidth, geo.jumboMaxHeight) *
+        capHeight(glyph)
+      );
+    }),
+  );
+}
+
+/** The oversized rank letter of a `jumbo` honour. */
+function jumboLetter(ref: GlyphRef, geo: CardGeometry, cap: number): Node {
+  const center = geo.centerPipCenter;
+  return letterUse(ref, cap, center.x, center.y);
+}
+
+/** The oversized suit symbol of a `jumbo` numeric rank. */
+function jumboPip(ref: GlyphRef, geo: CardGeometry): Node {
+  const center = geo.centerPipCenter;
+  return glyphUse(
+    ref,
+    fitGlyphHeight(ref.glyph, geo.jumboMaxWidth, geo.jumboMaxHeight),
+    center.x,
+    center.y,
+  );
+}
+
 /** Pips for the middle column, chosen by layout. */
 function middlePips(
   pip: GlyphRef,
+  rankGlyph: GlyphRef,
   layout: CardLayout,
   rank: Rank,
   geo: CardGeometry,
+  honourCap: number,
 ): Node[] {
   const center = geo.centerPipCenter;
   if (layout === "jumbo") {
-    const height = fitGlyphHeight(
-      pip.glyph,
-      geo.jumboMaxWidth,
-      geo.jumboMaxHeight,
-    );
-    return [glyphUse(pip, height, center.x, center.y)];
+    // An honour has no pip count, so the oversized mark is its own letter.
+    if (isHonourRank(rank)) {
+      return [jumboLetter(rankGlyph, geo, honourCap)];
+    }
+    return [jumboPip(pip, geo)];
   }
   if (layout === "traditional" && isPipRank(rank)) {
     return pipFieldPips(pip, rank, geo);
   }
+  if (layout === "traditional" && isHonourRank(rank)) {
+    // The large center symbol becomes the stacked letter pair; the corner pips
+    // stay, so the card still reads as its suit at a glance.
+    return [...honourPair(rankGlyph, geo), ...cornerPips(pip, geo)];
+  }
   return [
     glyphUse(pip, geo.centerPipHeight, center.x, center.y),
-    ...geo.cornerPipCenters.map((placement) =>
-      glyphUse(
-        pip,
-        geo.cornerPipHeight,
-        placement.x,
-        placement.y,
-        placement.rotated,
-      ),
-    ),
+    ...cornerPips(pip, geo),
   ];
 }
 
@@ -215,17 +329,85 @@ function pipFieldPips(pip: GlyphRef, rank: PipRank, geo: CardGeometry): Node[] {
   );
 }
 
+/** The rule drawn between the two letters of an honour pair. */
+function honourRule(geo: CardGeometry): Node {
+  return {
+    tag: "rect",
+    attributes: {
+      x: format(geo.centerPipCenter.x - geo.honourRuleWidth / 2),
+      y: format(geo.honourRuleY - geo.honourRuleThickness / 2),
+      width: format(geo.honourRuleWidth),
+      height: format(geo.honourRuleThickness),
+    },
+  };
+}
+
+/**
+ * A letter of an honour pair, set on the rule the way a letter sits on a writing
+ * line: `edge` is the side of the rule the letter faces and the lowest point of
+ * its ink stops `honourLetterGap` above it. Anchoring on the ink and not on the
+ * cap box is what lets the pair sit close to the rule without `J` and `Q`
+ * dragging a descender across it while `A` and `K` float above it.
+ */
+function letterOnRule(
+  ref: GlyphRef,
+  geo: CardGeometry,
+  edge: number,
+  rotated: boolean,
+): Node {
+  const glyph = ref.glyph;
+  // The anchor is the bottom of the ink box, which for a letter with a descender
+  // is below the baseline. The horizontal center of the box keeps the letter on
+  // the axis of the pair.
+  const anchor: readonly [number, number] = [
+    glyph.x + glyph.width / 2,
+    glyph.y + glyph.height,
+  ];
+  return {
+    tag: "use",
+    attributes: {
+      href: `#${ref.id}`,
+      transform: placeGlyph(
+        scaleTo(geo.honourLetterCap, capHeight(glyph)),
+        anchor,
+        geo.honourLetterX,
+        edge,
+        rotated,
+      ),
+    },
+  };
+}
+
+/**
+ * An honour in the `traditional` layout: the rank letter stacked twice about
+ * the middle line, split by a rule, the lower letter turned upside down.
+ */
+function honourPair(rank: GlyphRef, geo: CardGeometry): Node[] {
+  const ruleTop = geo.honourRuleY - geo.honourRuleThickness / 2;
+  const ruleBottom = geo.honourRuleY + geo.honourRuleThickness / 2;
+  return [
+    letterOnRule(rank, geo, ruleTop - geo.honourLetterGap, false),
+    honourRule(geo),
+    letterOnRule(rank, geo, ruleBottom + geo.honourLetterGap, true),
+  ];
+}
+
 function middleColumn(
   pip: GlyphRef,
+  rankGlyph: GlyphRef,
   layout: CardLayout,
   rank: Rank,
   geo: CardGeometry,
   color: string,
+  honourCap: number,
 ): Node {
   return {
     tag: "g",
     attributes: { fill: color },
-    children: [frameNode(geo, color), ...middlePips(pip, layout, rank, geo)],
+    children: [
+      frameNode(geo, color),
+      ...middlePips(pip, rankGlyph, layout, rank, geo, honourCap),
+    ],
   };
 }
 
@@ -284,6 +466,8 @@ export function renderCard(spec: CardSpec): string {
     glyph: requireGlyph(glyphs, RANK_GLYPH_ID[spec.rank]),
     id: RANK_ID,
   };
+  // Shared by the honours so their oversized letters keep one type size.
+  const honourCap = jumboHonourCap(glyphs, geo);
 
   const root: Node = {
     tag: "svg",
@@ -303,7 +487,7 @@ export function renderCard(spec: CardSpec): string {
         ],
       },
       backgroundNode(geo),
-      middleColumn(pip, layout, spec.rank, geo, color),
+      middleColumn(pip, rank, layout, spec.rank, geo, color, honourCap),
       ...indexUses(geo, color),
     ],
   };

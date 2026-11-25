@@ -7,6 +7,7 @@ import {
 } from "./layout.ts";
 import { DECKS } from "./decks.ts";
 import { GLYPHS, glyphById } from "./glyphs.ts";
+import { PIP_LAYOUTS, PIP_RANKS, type PipSlot } from "./pips.ts";
 import { SUIT_ORDER } from "./suits.ts";
 
 const bridge = cardGeometry(DECKS.bridge.size);
@@ -152,17 +153,66 @@ describe("pips", () => {
   });
 });
 
-test("traditional pips are sized by the densest pattern", () => {
-  for (const [, geo] of decks) {
-    // Ranks 9 and 10 put a pip every eighth of the field height, and a pip
-    // keeps a twelfth of that pitch as clear space.
-    expect(geo.pipHeight).toBeCloseTo((geo.pipFieldHeight / 8) * (11 / 12), 6);
-    // Two vertically adjacent pips keep a gap instead of touching.
-    expect(geo.pipHeight).toBeLessThan(geo.pipFieldHeight / 8);
-    // Small enough to leave room for the frame, large enough to read.
-    expect(geo.pipHeight).toBeGreaterThan(3 * UNITS_PER_MM);
-    expect(geo.pipHeight).toBeLessThan(geo.centerPipHeight);
-  }
+describe("one suit height", () => {
+  test("is shared by the index, the corner pips and the pattern", () => {
+    for (const [, geo] of decks) {
+      expect(geo.pipHeight).toBe(geo.indexSuitHeight);
+      expect(geo.cornerPipHeight).toBe(geo.indexSuitHeight);
+      // The index letter matches the suit under it.
+      expect(geo.indexRankHeight).toBe(geo.indexSuitHeight);
+      // Fixed, so the same suit is the same size on a bridge and a poker card.
+      expect(bridge.indexSuitHeight).toBe(poker.indexSuitHeight);
+      // Large enough to read, and smaller than the single large pip.
+      expect(geo.indexSuitHeight).toBe(7 * UNITS_PER_MM);
+      expect(geo.indexSuitHeight).toBeLessThan(geo.centerPipHeight);
+    }
+  });
+
+  test("leaves a gap in the densest patterns", () => {
+    // The tightest pairs are the odd pips of ranks 7, 9 and 10, which sit half a
+    // column step away from a side column. Boxes are taken from the widest suit,
+    // so every other color has at least as much clear space.
+    const widest = Math.max(
+      ...SUIT_ORDER.map((suit) => GLYPHS[suit].width / GLYPHS[suit].height),
+    );
+    const box = (geo: CardGeometry, slot: PipSlot) => {
+      const halfWidth = (geo.pipHeight * widest) / 2;
+      const halfHeight = geo.pipHeight / 2;
+      const x = geo.pipFieldLeft + slot.fx * geo.pipFieldWidth;
+      const y = geo.pipFieldTop + slot.fy * geo.pipFieldHeight;
+      return {
+        left: x - halfWidth,
+        right: x + halfWidth,
+        top: y - halfHeight,
+        bottom: y + halfHeight,
+      };
+    };
+    for (const [, geo] of decks) {
+      for (const rank of PIP_RANKS) {
+        const boxes = PIP_LAYOUTS[rank].map((slot) => box(geo, slot));
+        for (const [index, one] of boxes.entries()) {
+          for (const other of boxes.slice(index + 1)) {
+            const dx = Math.max(
+              one.left - other.right,
+              other.left - one.right,
+              0,
+            );
+            const dy = Math.max(
+              one.top - other.bottom,
+              other.top - one.bottom,
+              0,
+            );
+            expect(Math.hypot(dx, dy)).toBeGreaterThan(0);
+          }
+          // And every pip stays clear of the frame.
+          expect(one.left).toBeGreaterThan(geo.pipFieldLeft);
+          expect(one.right).toBeLessThan(geo.pipFieldLeft + geo.pipFieldWidth);
+          expect(one.top).toBeGreaterThan(geo.pipFieldTop);
+          expect(one.bottom).toBeLessThan(geo.pipFieldTop + geo.pipFieldHeight);
+        }
+      }
+    }
+  });
 });
 
 describe("index block", () => {
@@ -252,6 +302,61 @@ describe("index block", () => {
   test("is large enough to read at card size", () => {
     for (const [, geo] of decks) {
       expect(geo.indexHeight).toBeGreaterThanOrEqual(0.15 * geo.height);
+    }
+  });
+});
+
+describe("honour letter pair", () => {
+  test("is centered on the card", () => {
+    for (const [, geo] of decks) {
+      expect(geo.honourLetterX).toBeCloseTo(geo.width / 2, 6);
+      expect(geo.honourLetterX).toBeCloseTo(geo.centerPipCenter.x, 6);
+      expect(geo.honourRuleY).toBeCloseTo(geo.height / 2, 6);
+    }
+  });
+
+  test("leaves a gap between the letters and the rule", () => {
+    for (const [, geo] of decks) {
+      // Close enough to read as one mark, wide enough that no letter touches it.
+      expect(geo.honourLetterGap).toBeGreaterThan(0);
+      expect(geo.honourLetterGap).toBeLessThan(geo.honourLetterCap / 2);
+      expect(geo.honourLetterGap).toBeLessThan(
+        geo.honourRuleY - geo.honourRuleThickness / 2 - geo.pipFieldTop,
+      );
+    }
+  });
+
+  test("stays inside the frame", () => {
+    for (const [, geo] of decks) {
+      const innerLeft = geo.frameLeft + geo.frameStrokeWidth / 2;
+      const innerRight = geo.frameRight - geo.frameStrokeWidth / 2;
+      const innerTop = geo.frameTop + geo.frameStrokeWidth / 2;
+      const innerBottom = geo.frameBottom - geo.frameStrokeWidth / 2;
+      // The pair is anchored on the rule, so its outer edge is one cap height
+      // and one gap away from it. Geometry does not know fonts, so the ink a
+      // letter hangs below its baseline is checked in render.test.ts instead.
+      const ruleTop = geo.honourRuleY - geo.honourRuleThickness / 2;
+      const ruleBottom = geo.honourRuleY + geo.honourRuleThickness / 2;
+      expect(
+        ruleTop - geo.honourLetterGap - geo.honourLetterCap,
+      ).toBeGreaterThan(innerTop);
+      expect(
+        ruleBottom + geo.honourLetterGap + geo.honourLetterCap,
+      ).toBeLessThan(innerBottom);
+      expect(geo.honourRuleWidth).toBeLessThan(geo.pipFieldWidth);
+      expect(geo.centerPipCenter.x - geo.honourRuleWidth / 2).toBeGreaterThan(
+        innerLeft,
+      );
+      expect(geo.centerPipCenter.x + geo.honourRuleWidth / 2).toBeLessThan(
+        innerRight,
+      );
+    }
+  });
+
+  test("letters are large enough to read at card size", () => {
+    for (const [, geo] of decks) {
+      expect(geo.honourLetterCap).toBeGreaterThan(geo.indexRankHeight);
+      expect(geo.honourRuleThickness).toBeGreaterThan(0);
     }
   });
 });

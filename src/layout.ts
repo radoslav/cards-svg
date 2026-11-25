@@ -59,6 +59,25 @@ export interface CardGeometry {
   readonly pipFieldWidth: number;
   readonly pipFieldHeight: number;
   readonly pipHeight: number;
+  /**
+   * Visible height of each letter of an honour pair: baseline to the top of the
+   * capital, so letters with a descender (`J`, `Q`) are not shrunk to make room
+   * for ink that hangs below the line.
+   */
+  readonly honourLetterCap: number;
+  /** Center x of the two stacked letters of an honour pair. */
+  readonly honourLetterX: number;
+  /**
+   * Clear space between an honour letter and the rule it faces, measured from the
+   * lowest point of that letter's own ink. Measuring from the ink and not from the
+   * cap box is what lets the pair sit close to the line: a letter with a descender
+   * (`J`, `Q`) is lifted by what it hangs below the baseline, so it clears the rule
+   * while `A` and `K` stay on it.
+   */
+  readonly honourLetterGap: number;
+  readonly honourRuleWidth: number;
+  readonly honourRuleThickness: number;
+  readonly honourRuleY: number;
   readonly jumboMaxWidth: number;
   readonly jumboMaxHeight: number;
 }
@@ -69,29 +88,40 @@ export const COLUMN_FRACTIONS = [0.2, 0.6, 0.2] as const;
 /** The middle column frame starts 20% in from every edge of the card. */
 export const FRAME_INSET = 0.2;
 
+/**
+ * Height of a suit symbol, in millimetres.
+ *
+ * Every suit on the card is drawn at this height: the symbol of the index in
+ * columns 1 and 3, the four corner pips and the pips of a traditional pattern.
+ * A suit keeps its own aspect ratio, so the four colors differ in width - which
+ * is what makes them recognizable - but never in size.
+ */
+const SUIT_HEIGHT_MM = 7;
+
 /** Fixed physical sizes, in millimetres. */
 const MM = {
   cardCornerRadius: 3,
   frameCornerRadius: 2,
   frameStroke: 1.5,
-  indexRank: 7,
+  /** The index letter is set to the height of the suit below it. */
+  indexRank: SUIT_HEIGHT_MM,
   indexGap: 0.8,
   centerPip: 26.4,
-  cornerPip: 7,
   cornerPipInset: 6.5,
   jumboInset: 2,
+  honourRule: 1.5,
 } as const;
 
 /**
- * Traditional pip sizing.
- *
- * One pip gets one cell of the densest grid the patterns use: the side columns
- * of ranks 9 and 10 step every quarter of the field width and every eighth of
- * its height. Sizing from that cell keeps every rank on one pip size, the way a
- * printed deck does, and guarantees that a pip never reaches a diagonal
- * neighbour. A twelfth of the cell stays clear.
+ * Honours (A, K, Q, J) in the `traditional` layout show a stacked pair of rank
+ * letters split by a rule, instead of a suit symbol. Both letters share one cap
+ * height so the pair reads as a single mark, and each of them is set on the rule
+ * the way a letter sits on a writing line: `HONOUR_LETTER_GAP_FRACTION` of the
+ * cap height stays clear between the ink and the rule.
  */
-const PIP_PITCH_FILL = 11 / 12;
+const HONOUR_LETTER_FRACTION = 0.24;
+const HONOUR_LETTER_GAP_FRACTION = 0.12;
+const HONOUR_RULE_WIDTH_FRACTION = 0.5;
 
 function triple(values: readonly number[]): readonly [number, number, number] {
   return [values[0]!, values[1]!, values[2]!];
@@ -129,9 +159,10 @@ export function cardGeometry(size: CardSize): CardGeometry {
   const frameHeight = frameBottom - frameTop;
 
   const indexRankHeight = MM.indexRank * UNITS_PER_MM;
+  const suitHeight = SUIT_HEIGHT_MM * UNITS_PER_MM;
   const indexGap = MM.indexGap * UNITS_PER_MM;
   // The suit symbol is rendered at the same height as the rank.
-  const indexSuitHeight = indexRankHeight;
+  const indexSuitHeight = suitHeight;
   const indexHeight = indexRankHeight + indexGap + indexSuitHeight;
   // Centered in the *visible* band, so the frame stroke is excluded.
   const indexCenterY = (frameTop - frameStrokeWidth / 2) / 2;
@@ -142,7 +173,7 @@ export function cardGeometry(size: CardSize): CardGeometry {
     indexRankHeight + indexGap + indexSuitHeight / 2 - indexHeight / 2;
 
   const centerPipHeight = MM.centerPip * UNITS_PER_MM;
-  const cornerPipHeight = MM.cornerPip * UNITS_PER_MM;
+  const cornerPipHeight = suitHeight;
   const cornerPipInset = MM.cornerPipInset * UNITS_PER_MM;
   const cornerPipCenters: readonly PipPlacement[] = [
     {
@@ -176,8 +207,19 @@ export function cardGeometry(size: CardSize): CardGeometry {
   const pipFieldTop = frameTop + frameStrokeWidth / 2;
   const pipFieldWidth = frameWidth - frameStrokeWidth;
   const pipFieldHeight = frameHeight - frameStrokeWidth;
-  const pipHeight =
-    Math.min(pipFieldWidth / 4, pipFieldHeight / 8) * PIP_PITCH_FILL;
+  // The pips of a pattern are the same size as the suit of the index, so one
+  // suit is one size wherever it appears on the card.
+  const pipHeight = suitHeight;
+
+  // The stacked letter pair for the honours, mirrored about the card center.
+  // Where the two letters sit depends on how far the font drops ink below the
+  // baseline, so only the shared size, the axis and the gap are derived here.
+  const honourLetterCap = HONOUR_LETTER_FRACTION * pipFieldHeight;
+  const honourLetterGap = HONOUR_LETTER_GAP_FRACTION * honourLetterCap;
+  const honourLetterX = pipFieldLeft + pipFieldWidth / 2;
+  const honourRuleWidth = HONOUR_RULE_WIDTH_FRACTION * pipFieldWidth;
+  const honourRuleThickness = MM.honourRule * UNITS_PER_MM;
+  const honourRuleY = pipFieldTop + pipFieldHeight / 2;
 
   return {
     size,
@@ -215,6 +257,12 @@ export function cardGeometry(size: CardSize): CardGeometry {
     pipFieldWidth,
     pipFieldHeight,
     pipHeight,
+    honourLetterCap,
+    honourLetterX,
+    honourLetterGap,
+    honourRuleWidth,
+    honourRuleThickness,
+    honourRuleY,
     jumboMaxWidth,
     jumboMaxHeight,
   };

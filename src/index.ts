@@ -18,6 +18,7 @@ export {
   FONT_NAMES,
   FONT_SETS,
   GLYPHS,
+  capHeight,
   fontSet,
   glyphById,
   isFontName,
@@ -28,10 +29,13 @@ export {
 } from "./glyphs.ts";
 export { cardGeometry, type CardGeometry, type CardSize } from "./layout.ts";
 export {
+  HONOUR_RANKS,
   isPipRank,
+  isHonourRank,
   PIP_LAYOUTS,
   PIP_RANKS,
   pipCount,
+  type HonourRank,
   type PipRank,
   type PipSlot,
 } from "./pips.ts";

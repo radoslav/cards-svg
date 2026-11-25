@@ -7,6 +7,7 @@
  * Path data is vectorized from a system font at a nominal font size of
  * 1000 units. x/y/width/height describe the glyph bounding box in
  * the same coordinate space, so callers can scale and center without parsing.
+ * baseline is the font baseline (y = 1000) that the letters sit on.
  * bold records whether the source glyph was vectorized from a bold weight.
  */
 
@@ -20,6 +21,7 @@ export const NOTO_SANS: GlyphSet = {
     y: 275,
     width: 626,
     height: 725,
+    baseline: 1000,
     bold: false,
   },
   hearts: {
@@ -28,6 +30,7 @@ export const NOTO_SANS: GlyphSet = {
     y: 281,
     width: 638,
     height: 719,
+    baseline: 1000,
     bold: false,
   },
   diamonds: {
@@ -36,6 +39,7 @@ export const NOTO_SANS: GlyphSet = {
     y: 272,
     width: 504,
     height: 742,
+    baseline: 1000,
     bold: false,
   },
   clubs: {
@@ -44,6 +48,7 @@ export const NOTO_SANS: GlyphSet = {
     y: 251,
     width: 774,
     height: 749,
+    baseline: 1000,
     bold: false,
   },
   spadesOutlined: {
@@ -52,6 +57,7 @@ export const NOTO_SANS: GlyphSet = {
     y: 275,
     width: 626,
     height: 725,
+    baseline: 1000,
     bold: false,
   },
   heartsOutlined: {
@@ -60,6 +66,7 @@ export const NOTO_SANS: GlyphSet = {
     y: 281,
     width: 638,
     height: 719,
+    baseline: 1000,
     bold: false,
   },
   diamondsOutlined: {
@@ -68,6 +75,7 @@ export const NOTO_SANS: GlyphSet = {
     y: 272,
     width: 504,
     height: 742,
+    baseline: 1000,
     bold: false,
   },
   clubsOutlined: {
@@ -76,6 +84,7 @@ export const NOTO_SANS: GlyphSet = {
     y: 251,
     width: 774,
     height: 749,
+    baseline: 1000,
     bold: false,
   },
   rankA: {
@@ -84,6 +93,7 @@ export const NOTO_SANS: GlyphSet = {
     y: 283,
     width: 692,
     height: 717,
+    baseline: 1000,
     bold: true,
   },
   rankK: {
@@ -92,6 +102,7 @@ export const NOTO_SANS: GlyphSet = {
     y: 286,
     width: 574,
     height: 714,
+    baseline: 1000,
     bold: true,
   },
   rankQ: {
@@ -100,6 +111,7 @@ export const NOTO_SANS: GlyphSet = {
     y: 275,
     width: 680,
     height: 895,
+    baseline: 1000,
     bold: true,
   },
   rankJ: {
@@ -108,6 +120,7 @@ export const NOTO_SANS: GlyphSet = {
     y: 286,
     width: 315,
     height: 924,
+    baseline: 1000,
     bold: true,
   },
   rank10: {
@@ -116,6 +129,7 @@ export const NOTO_SANS: GlyphSet = {
     y: 275,
     width: 1048,
     height: 735,
+    baseline: 1000,
     bold: true,
   },
   rank9: {
@@ -124,6 +138,7 @@ export const NOTO_SANS: GlyphSet = {
     y: 278,
     width: 504,
     height: 732,
+    baseline: 1000,
     bold: true,
   },
   rank8: {
@@ -132,6 +147,7 @@ export const NOTO_SANS: GlyphSet = {
     y: 277,
     width: 501,
     height: 733,
+    baseline: 1000,
     bold: true,
   },
   rank7: {
@@ -140,6 +156,7 @@ export const NOTO_SANS: GlyphSet = {
     y: 286,
     width: 512,
     height: 714,
+    baseline: 1000,
     bold: true,
   },
   rank6: {
@@ -148,6 +165,7 @@ export const NOTO_SANS: GlyphSet = {
     y: 278,
     width: 504,
     height: 732,
+    baseline: 1000,
     bold: true,
   },
   rank5: {
@@ -156,6 +174,7 @@ export const NOTO_SANS: GlyphSet = {
     y: 286,
     width: 477,
     height: 724,
+    baseline: 1000,
     bold: true,
   },
   rank4: {
@@ -164,6 +183,7 @@ export const NOTO_SANS: GlyphSet = {
     y: 286,
     width: 538,
     height: 714,
+    baseline: 1000,
     bold: true,
   },
   rank3: {
@@ -172,6 +192,7 @@ export const NOTO_SANS: GlyphSet = {
     y: 276,
     width: 494,
     height: 734,
+    baseline: 1000,
     bold: true,
   },
   rank2: {
@@ -180,6 +201,7 @@ export const NOTO_SANS: GlyphSet = {
     y: 276,
     width: 501,
     height: 724,
+    baseline: 1000,
     bold: true,
   },
 };

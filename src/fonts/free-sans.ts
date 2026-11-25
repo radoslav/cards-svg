@@ -7,6 +7,7 @@
  * Path data is vectorized from a system font at a nominal font size of
  * 1000 units. x/y/width/height describe the glyph bounding box in
  * the same coordinate space, so callers can scale and center without parsing.
+ * baseline is the font baseline (y = 1000) that the letters sit on.
  * bold records whether the source glyph was vectorized from a bold weight.
  */
 
@@ -20,6 +21,7 @@ export const FREE_SANS: GlyphSet = {
     y: 295,
     width: 557,
     height: 705,
+    baseline: 1000,
     bold: false,
   },
   hearts: {
@@ -28,6 +30,7 @@ export const FREE_SANS: GlyphSet = {
     y: 296,
     width: 624,
     height: 718,
+    baseline: 1000,
     bold: false,
   },
   diamonds: {
@@ -36,6 +39,7 @@ export const FREE_SANS: GlyphSet = {
     y: 295,
     width: 526,
     height: 719,
+    baseline: 1000,
     bold: false,
   },
   clubs: {
@@ -44,6 +48,7 @@ export const FREE_SANS: GlyphSet = {
     y: 295,
     width: 706,
     height: 705,
+    baseline: 1000,
     bold: false,
   },
   spadesOutlined: {
@@ -52,6 +57,7 @@ export const FREE_SANS: GlyphSet = {
     y: 295,
     width: 557,
     height: 705,
+    baseline: 1000,
     bold: false,
   },
   heartsOutlined: {
@@ -60,6 +66,7 @@ export const FREE_SANS: GlyphSet = {
     y: 296,
     width: 624,
     height: 718,
+    baseline: 1000,
     bold: false,
   },
   diamondsOutlined: {
@@ -68,6 +75,7 @@ export const FREE_SANS: GlyphSet = {
     y: 295,
     width: 526,
     height: 719,
+    baseline: 1000,
     bold: false,
   },
   clubsOutlined: {
@@ -76,6 +84,7 @@ export const FREE_SANS: GlyphSet = {
     y: 295,
     width: 706,
     height: 705,
+    baseline: 1000,
     bold: false,
   },
   rankA: {
@@ -84,6 +93,7 @@ export const FREE_SANS: GlyphSet = {
     y: 271,
     width: 677,
     height: 729,
+    baseline: 1000,
     bold: true,
   },
   rankK: {
@@ -92,6 +102,7 @@ export const FREE_SANS: GlyphSet = {
     y: 271,
     width: 643,
     height: 729,
+    baseline: 1000,
     bold: true,
   },
   rankQ: {
@@ -100,6 +111,7 @@ export const FREE_SANS: GlyphSet = {
     y: 259,
     width: 702,
     height: 795,
+    baseline: 1000,
     bold: true,
   },
   rankJ: {
@@ -108,6 +120,7 @@ export const FREE_SANS: GlyphSet = {
     y: 271,
     width: 462,
     height: 752,
+    baseline: 1000,
     bold: true,
   },
   rank10: {
@@ -116,6 +129,7 @@ export const FREE_SANS: GlyphSet = {
     y: 276,
     width: 1005,
     height: 747,
+    baseline: 1000,
     bold: true,
   },
   rank9: {
@@ -124,6 +138,7 @@ export const FREE_SANS: GlyphSet = {
     y: 276,
     width: 488,
     height: 748,
+    baseline: 1000,
     bold: true,
   },
   rank8: {
@@ -132,6 +147,7 @@ export const FREE_SANS: GlyphSet = {
     y: 276,
     width: 503,
     height: 747,
+    baseline: 1000,
     bold: true,
   },
   rank7: {
@@ -140,6 +156,7 @@ export const FREE_SANS: GlyphSet = {
     y: 291,
     width: 499,
     height: 709,
+    baseline: 1000,
     bold: true,
   },
   rank6: {
@@ -148,6 +165,7 @@ export const FREE_SANS: GlyphSet = {
     y: 276,
     width: 487,
     height: 747,
+    baseline: 1000,
     bold: true,
   },
   rank5: {
@@ -156,6 +174,7 @@ export const FREE_SANS: GlyphSet = {
     y: 291,
     width: 490,
     height: 732,
+    baseline: 1000,
     bold: true,
   },
   rank4: {
@@ -164,6 +183,7 @@ export const FREE_SANS: GlyphSet = {
     y: 291,
     width: 498,
     height: 709,
+    baseline: 1000,
     bold: true,
   },
   rank3: {
@@ -172,6 +192,7 @@ export const FREE_SANS: GlyphSet = {
     y: 276,
     width: 487,
     height: 747,
+    baseline: 1000,
     bold: true,
   },
   rank2: {
@@ -180,6 +201,7 @@ export const FREE_SANS: GlyphSet = {
     y: 276,
     width: 485,
     height: 724,
+    baseline: 1000,
     bold: true,
   },
 };
