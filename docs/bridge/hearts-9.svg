@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="57mm" height="89mm" viewBox="0 0 570 890">
+  <defs>
+    <path id="pip" d="m 1348,440 q 20,-74 64,-109 45,-35 99,-35 61,0 104,42 44,42 44,101 0,54 -27,110 -26,56 -67,108 -40,52 -82,105 -42,52 -81,119 -38,67 -54,133 -20,-75 -61,-143 -40,-69 -149,-211 -60,-79 -82,-123 -21,-45 -21,-92 0,-63 42,-106 43,-43 105,-43 119,0 166,144 z"/>
+    <path id="rank" d="m 1516,630 q 0,96 -17,169 -17,73 -43,115 -25,42 -61,68 -36,25 -69,33 -33,9 -71,9 -92,0 -154,-53 -61,-54 -63,-136 h 135 q 2,31 25,50 24,19 61,19 117,0 117,-202 -1,1 -8,10 -7,8 -12,13 -4,4 -13,13 -9,8 -19,13 -9,5 -22,11 -12,5 -28,8 -16,2 -34,2 -94,0 -153,-68 -59,-68 -59,-178 0,-111 66,-180 67,-70 173,-70 34,0 65,8 31,7 65,31 35,23 60,60 26,37 42,103 17,66 17,152 z M 1263,390 q -47,0 -75,37 -27,36 -27,97 0,61 28,97 28,35 76,35 48,0 78,-36 30,-36 30,-94 0,-62 -30,-99 -29,-37 -80,-37 z"/>
+    <g id="index">
+      <use href="#rank" transform="translate(-119.038 -99.829) scale(0.093583)"/>
+      <use href="#pip" transform="translate(-131.323 -24.858) scale(0.097493)"/>
+    </g>
+  </defs>
+  <rect width="570" height="890" rx="30" fill="#FFFFFF"/>
+  <g fill="#C8102E">
+    <rect x="114" y="178" width="342" height="534" rx="20" fill="none" stroke="#C8102E" stroke-width="15"/>
+    <use href="#pip" transform="translate(71.927 186.517) scale(0.097493)"/>
+    <use href="#pip" transform="translate(235.427 186.517) scale(0.097493)"/>
+    <use href="#pip" transform="translate(71.927 316.267) scale(0.097493)"/>
+    <use href="#pip" transform="translate(235.427 316.267) scale(0.097493)"/>
+    <use href="#pip" transform="translate(153.677 381.142) scale(0.097493)"/>
+    <use href="#pip" transform="translate(334.573 573.733) rotate(180) scale(0.097493)"/>
+    <use href="#pip" transform="translate(498.073 573.733) rotate(180) scale(0.097493)"/>
+    <use href="#pip" transform="translate(334.573 703.483) rotate(180) scale(0.097493)"/>
+    <use href="#pip" transform="translate(498.073 703.483) rotate(180) scale(0.097493)"/>
+  </g>
+  <use fill="#C8102E" href="#index" transform="translate(57 85.25)"/>
+  <use fill="#C8102E" href="#index" transform="translate(513 804.75) rotate(180)"/>
+</svg>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="63mm" height="88mm" viewBox="0 0 630 880">
+  <defs>
+    <path id="pip" d="m 1329,762 q 5,52 25,92 20,40 42,61 22,21 55,36 34,15 52,20 18,4 44,8 4,1 6,1 v 20 h -481 v -20 q 85,-15 129,-44 84,-56 95,-174 -52,80 -134,80 -53,0 -91,-37 -37,-37 -37,-90 0,-45 22,-82 22,-37 57,-67 35,-31 72,-64 37,-33 73,-86 36,-54 55,-121 17,66 52,119 36,53 73,86 38,33 73,64 35,31 57,68 23,37 23,83 0,53 -38,90 -37,37 -90,37 -82,0 -134,-80 z"/>
+    <path id="rank" d="m 1258,1023 q -41,0 -79,-10 -37,-10 -72,-33 -35,-24 -56,-69 -21,-46 -21,-109 v -72 h 150 v 70 q 0,50 19,73 19,22 62,22 39,0 60,-22 21,-22 21,-63 V 271 h 150 v 539 q 0,102 -61,158 -61,55 -173,55 z"/>
+    <g id="index">
+      <use href="#rank" transform="translate(-117.38 -99.226) scale(0.093085)"/>
+      <use href="#pip" transform="translate(-130.319 -25.291) scale(0.099291)"/>
+    </g>
+  </defs>
+  <rect width="630" height="880" rx="30" fill="#FFFFFF"/>
+  <g fill="#1A1A1A">
+    <rect x="126" y="176" width="378" height="528" rx="20" fill="none" stroke="#1A1A1A" stroke-width="15"/>
+    <use href="#rank" transform="translate(-274.755 137.406) scale(0.467688)"/>
+  </g>
+  <use fill="#1A1A1A" href="#index" transform="translate(63 84.25)"/>
+  <use fill="#1A1A1A" href="#index" transform="translate(567 795.75) rotate(180)"/>
+</svg>

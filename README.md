@@ -8,13 +8,13 @@ renders identically in every tool.
 
 Bridge — 57 × 89 mm, `--layout traditional`:
 
-| ![](docs/bridge-spades-A.png) | ![](docs/bridge-hearts-9.png) | ![](docs/bridge-diamonds-7.png) | ![](docs/bridge-clubs-K.png) |
+| ![](docs/bridge/spades-A.svg) | ![](docs/bridge/hearts-9.svg) | ![](docs/bridge/diamonds-7.svg) | ![](docs/bridge/clubs-K.svg) |
 | ----------------------------- | ----------------------------- | ------------------------------- | ---------------------------- |
 | `spades A`                    | `hearts 9`                    | `diamonds 7`                    | `clubs K`                    |
 
 Poker — 63 × 88 mm, `--layout jumbo`:
 
-| ![](docs/poker-spades-A.png) | ![](docs/poker-hearts-Q.png) | ![](docs/poker-diamonds-9.png) | ![](docs/poker-clubs-10.png) |
+| ![](docs/poker/spades-A.svg) | ![](docs/poker/hearts-Q.svg) | ![](docs/poker/diamonds-9.svg) | ![](docs/poker/clubs-10.svg) |
 | ---------------------------- | ---------------------------- | ------------------------------ | ---------------------------- |
 | `spades A`                   | `hearts Q`                   | `diamonds 9`                   | `clubs 10`                   |
 
@@ -138,17 +138,6 @@ families** and resolves each glyph on its own: `Noto Sans, Noto Sans Symbols 2`.
 bun test            # 175 tests: geometry, glyphs, pips, SVG, render, decks, CLI
 bun run typecheck   # bun check
 bun fmt             # formatting (bun fmt --check)
-```
-
-The images in `docs/` are screenshots of generated cards (on white, because
-Inkscape exports a transparent background by default):
-
-```bash
-bun index.ts deck bridge --font "Noto Sans"
-inkscape out/bridge/spades-A.svg --export-type=png \
-  --export-filename=docs/bridge-spades-A.png -w 200
-magick docs/bridge-spades-A.png -background white -flatten -strip \
-  docs/bridge-spades-A.png
 ```
 
 ## Limitations
